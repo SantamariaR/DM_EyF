@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+logs/
+data/
+predict/
+resultados/
+results_analysis/
