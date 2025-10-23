@@ -1,6 +1,9 @@
 import polars as pl
 import logging
 
+# Carpeta que contiene las funciones carga y las operaciones sobre la clase ternaria
+
+
 logger = logging.getLogger("__name__")
 
 ## Funcion para cargar datos
@@ -19,12 +22,7 @@ def cargar_datos(path: str) -> pl.DataFrame | None:
         logger.error(f"Error al cargar el dataset: {e}")
         raise
     
-def convertir_a_clase_ternaria(df: pl.DataFrame, columna: str) -> pl.DataFrame:
-
-    return df
-
-
-# Calcuñlamos la clase_ternaria
+# Calculamos la clase_ternaria
 def calcular_clase_ternaria(dataset: pl.DataFrame) -> pl.DataFrame:
     """
     Versión optimizada del cálculo de clase_ternaria.
@@ -103,3 +101,48 @@ def contar_por_grupos(dataset: pl.DataFrame) -> pl.DataFrame:
     )
     
     return resultado
+
+
+def convertir_clase_ternaria_a_target(df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Convierte clase_ternaria a target binario reemplazando en el mismo atributo:
+    - CONTINUA = 0
+    - BAJA+1 y BAJA+2 = 1
+  
+    Args:
+        df: DataFrame de Polars con columna 'clase_ternaria'
+  
+    Returns:
+        pl.DataFrame: DataFrame con clase_ternaria convertida a valores binarios (0, 1)
+    """
+    df_result = df.clone()
+    
+    # Contar valores originales de forma más segura
+    counts_dict = df_result['clase_ternaria'].value_counts()
+    
+    # Usar get para evitar errores si algún valor no existe
+    n_continua_orig = counts_dict.filter(pl.col('clase_ternaria') == 'CONTINUA').select('count').item()
+    n_baja1_orig = counts_dict.filter(pl.col('clase_ternaria') == 'BAJA+1').select('count').item()
+    n_baja2_orig = counts_dict.filter(pl.col('clase_ternaria') == 'BAJA+2').select('count').item()
+
+    
+    # Crear nueva columna clase_01 - FORZANDO TIPO NUMÉRICO
+    df_result = df_result.with_columns(
+        pl.when(pl.col('clase_ternaria') == 'CONTINUA')
+        .then(pl.lit(0))  # Usar pl.lit() para forzar tipo numérico
+        .when(pl.col('clase_ternaria').is_in(['BAJA+1', 'BAJA+2']))
+        .then(pl.lit(1))  # Usar pl.lit() para forzar tipo numérico
+        .alias('clase_01')
+    )
+    
+    
+    # Log de la conversión
+    n_ceros = df_result.filter(pl.col('clase_01') == 0).height
+    n_unos = df_result.filter(pl.col('clase_01') == 1).height
+  
+    logger.info(f"Conversión completada:")
+    logger.info(f"  Original - CONTINUA: {n_continua_orig}, BAJA+1: {n_baja1_orig}, BAJA+2: {n_baja2_orig}")
+    logger.info(f"  Binario - 0: {n_ceros}, 1: {n_unos}")
+    logger.info(f"  Distribución: {n_unos/(n_ceros + n_unos)*100:.2f}% casos positivos")
+  
+    return df_result    
