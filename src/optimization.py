@@ -8,7 +8,7 @@ import json
 import os
 from datetime import datetime
 from .config import *
-from .gain_function import calcular_ganancia, ganancia_evaluator_lgb,ganancia_evaluator_manual
+from .gain_function import calcular_ganancia, ganancia_evaluator_lgb,ganancia_evaluator_manual,calcular_ganancia_cortes
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +105,7 @@ def objetivo_ganancia(trial: optuna.trial.Trial, df: pl.DataFrame, undersampling
 
 
     # ===============================
-    # 4. Preparar dataset para LightGBM
+    # Preparar dataset para LightGBM
     # ===============================
     X = df_sub.drop(["clase_ternaria", "clase_01"]).to_pandas()
     y = df_sub["clase_01"].to_pandas()
@@ -264,3 +264,139 @@ def guardar_iteracion(trial, ganancia, archivo_base=None):
 
 
    
+def evaluar_en_test(df, mejores_params) -> dict:
+    """
+    Evalúa el modelo con los mejores hiperparámetros en el conjunto de test.
+    Solo calcula la ganancia, sin usar sklearn.
+  
+    Args:
+        df: DataFrame con todos los datos
+        mejores_params: Mejores hiperparámetros encontrados por Optuna
+  
+    Returns:
+        dict: Resultados de la evaluación en test (ganancia + estadísticas básicas)
+    """
+    logger.info("=== EVALUACIÓN EN CONJUNTO DE TEST ===")
+    logger.info(f"Período de test: {MES_TEST}")
+  
+    # Preparar datos de entrenamiento (TRAIN + VALIDACION)
+    if isinstance(MES_TRAIN, list):
+        periodos_entrenamiento = MES_TRAIN + [MES_VALIDACION]
+    else:
+        periodos_entrenamiento = [MES_TRAIN, MES_VALIDACION]
+    
+    periodo_test = MES_TEST
+        
+    logger.info(f"Períodos de entrenamiento: {periodos_entrenamiento}")
+    logger.info(f"Período de Testeo: {periodo_test}")
+  
+    # Data preparación, train y test
+    df_train = df.filter(pl.col("foto_mes").is_in(periodos_entrenamiento))
+    df_test = df.filter(pl.col("foto_mes") == periodo_test)
+    
+    # Separar clases(por si queremos undersampling )
+    df_pos = df_train.filter(pl.col("clase_01") == 1)
+    df_neg = df_train.filter(pl.col("clase_01") == 0)
+
+
+    # Polars no tiene sample(frac=...), pero podemos calcular cuántas filas queremos
+#    n_sample = int(df_neg.height * frac)
+#    df_neg_sample = df_neg.sample(n=n_sample, seed=SEMILLA + trial.number)
+
+    # Concatenar positivos y negativos muestreados
+    df_sub = pl.concat([df_pos, df_neg])
+
+    # Shuffle del dataset
+    df_sub = df_sub.sample(fraction=1.0, shuffle=True, seed=SEMILLA[0]) 
+    
+
+    # ===============================
+    # Preparar dataset para LightGBM
+    # ===============================
+    X = df_sub.drop(["clase_ternaria", "clase_01"]).to_pandas()
+    y = df_sub["clase_01"].to_pandas()
+
+    dtrain = lgb.Dataset(X, label=y)
+    
+    # Para test sólo tomo como positivos BAJA+2
+    X_test = df_test.drop(["clase_ternaria", "clase_01"]).to_pandas()
+    y_test = df_test["clase_ternaria"].to_pandas()
+    y_test = (y_test == "BAJA+2").astype(int)
+    
+    #val_data = lgb.Dataset(X_val, label=y_val)
+    
+    logger.info(f"Train dataset listo: {X.shape}, Pos: {y.sum()}, Neg: {len(y)-y.sum()} ")
+   
+    # Listas para almacenar modelos y predicciones
+    modelos = []
+    predicciones_test = []
+    # Entrenar 5 modelos con diferentes semillas
+    for i, semilla in enumerate(SEMILLA):
+        logger.info(f"\n--- Entrenando modelo {i+1} con semilla {semilla} ---")
+        
+        # Actualizar la semilla en los parámetros
+        mejores_params['seed'] = semilla
+        mejores_params['feature_fraction_seed'] = semilla
+        mejores_params['bagging_seed'] = semilla
+        
+        # Entrenar modelo
+        model = lgb.train(
+            mejores_params,
+            dtrain,
+            callbacks=[
+            lgb.early_stopping(stopping_rounds=50, verbose=True),
+            lgb.log_evaluation(period=100)]
+            
+        )
+        
+        # Guardar modelo
+        modelos.append(model)
+        
+        # Predecir con este modelo
+        y_pred_proba_single = model.predict(X_test)
+        predicciones_test.append(y_pred_proba_single)    
+
+    # Promediar las predicciones de test
+    y_pred_proba_ensemble = np.mean(predicciones_test, axis=0)  
+  
+    # Entrenar modelo con mejores parámetros
+    # ... Implementar entrenamiento y test con la logica de entrenamiento FINAL para mayor detalle
+    # recordar realizar todos los df necesarios y utilizar lgb.train()
+  
+    # Calcular solo la ganancia
+    cantidades, ganancias = calcular_ganancia_cortes(y_test, y_pred_proba_ensemble)
+  
+#    # Estadísticas básicas
+#    total_predicciones = len(y_pred_binary)
+#    predicciones_positivas = np.sum(y_pred_binary == 1)
+#    porcentaje_positivas = (predicciones_positivas / total_predicciones) * 100
+#  
+#    resultados = {
+#        'ganancia_test': float(ganancia_test),
+#        'total_predicciones': int(total_predicciones),
+#        'predicciones_positivas': int(predicciones_positivas),
+#        'porcentaje_positivas': float(porcentaje_positivas)
+#    }
+    # Encontrar el índice donde está la ganancia máxima
+    indice_max = np.argmax(ganancias)
+
+    #  Obtener la cantidad correspondiente
+    cantidad_optima = cantidades[indice_max]
+    ganancia_maxima = ganancias[indice_max]
+
+
+    logger.info(f"La mejor ganancia en test es: {cantidad_optima}, y ocurrio con {ganancia_maxima} envios")
+    
+#  
+    return cantidades, ganancias
+
+
+
+def guardar_resultados_test(resultados_test, archivo_base=None):
+    """
+    Guarda los resultados de la evaluación en test en un archivo JSON.
+    """
+    # Guarda en resultados/{STUDY_NAME}_test_results.json
+    # ... Implementar utilizando la misma logica que cuando guardamos una iteracion de la Bayesiana
+
+

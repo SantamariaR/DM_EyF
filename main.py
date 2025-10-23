@@ -55,7 +55,7 @@ def main():
     df = convertir_clase_ternaria_a_target(df)
     
     # 4. Ejecutar optimización (función simple)
-    study = optimizar(df, n_trials= 5) 
+    study = optimizar(df, n_trials= 50) 
     
     # 5. Análisis adicional
     logger.info("=== ANÁLISIS DE RESULTADOS ===")
