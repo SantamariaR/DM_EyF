@@ -9,7 +9,8 @@ import logging
 from src.loader import cargar_datos,calcular_clase_ternaria,contar_por_grupos,convertir_clase_ternaria_a_target
 from src.features import feature_engineering_lag, feature_engineering_delta_lag
 from src.config import *
-from src.optimization import optimizar
+from src.optimization import optimizar,evaluar_en_test,guardar_resultados_test
+from src.best_params import cargar_mejores_hiperparametros
 
 
 ## config basico logging
@@ -55,7 +56,7 @@ def main():
     df = convertir_clase_ternaria_a_target(df)
     
     # 4. Ejecutar optimización (función simple)
-    study = optimizar(df, n_trials= 50) 
+    study = optimizar(df, n_trials= 1) 
     
     # 5. Análisis adicional
     logger.info("=== ANÁLISIS DE RESULTADOS ===")
@@ -66,7 +67,19 @@ def main():
         for idx, trial in top_5.iterrows():
             logger.info(f"  Trial {trial['number']}: {trial['value']:,.0f}")
   
-    logger.info("=== OPTIMIZACIÓN COMPLETADA ===")    
+    logger.info("=== OPTIMIZACIÓN COMPLETADA ===")
+    
+    #05 Test en mes desconocido
+    logger.info("=== EVALUACIÓN EN CONJUNTO DE TEST ===")
+    # Cargar mejores hiperparámetros
+    mejores_params = cargar_mejores_hiperparametros()
+  
+    # Evaluar en test
+    df_pred = evaluar_en_test(df, mejores_params)
+  
+    # Guardar resultados de test
+    guardar_resultados_test(df_pred)
+    
     #02 Guardar dataset procesado
     #path_salida = "data/competencia_01_procesado.csv"
     #df.write_csv(path_salida)

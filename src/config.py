@@ -21,6 +21,9 @@ try:
         MES_FINAL = _cfg.get("MES_FINAL", 202106)
         GANANCIA_ACIERTO = _cfg.get("GANANCIA_ACIERTO", None)
         COSTO_ESTIMULO = _cfg.get("COSTO_ESTIMULO", None)
+        INICIO_ENVIOS = _cfg.get("INICIO_ENVIOS", None)
+        FIN_ENVIOS = _cfg.get("FIN_ENVIOS", None)
+        PASO_ENVIOS = _cfg.get("PASO_ENVIOS", None)
 
 except Exception as e:
     logger.error(f"Error al cargar el archivo de configuracion: {e}")

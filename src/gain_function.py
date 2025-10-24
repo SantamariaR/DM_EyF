@@ -100,6 +100,49 @@ def calcular_ganancia_cortes(y_true, y_pred, start=INICIO_ENVIOS, finish=FIN_ENV
     
     return np.array(cantidades), np.array(ganancias)
 
+def calcular_ganancia_acumulada(df, col_probabilidad="pred_proba_ensemble", col_clase="clase_ternaria"):
+    """
+    Calcula la ganancia acumulada ordenando por probabilidad (mayor a menor)
+    y sumando/restando según la clase.
+    
+    Args:
+        df: DataFrame de Polars
+        col_probabilidad: Columna con las probabilidades del ensemble
+        col_clase: Columna con las clases (0 o 1)
+    
+    Returns:
+        DataFrame con la ganancia acumulada
+    """
+    
+    # Ordenar por probabilidad de 
+    df_ordenado = df.sort(col_probabilidad, descending=True)
+    
+    # Calcular ganancia individual
+    df_con_ganancia = df_ordenado.with_columns([
+        pl.when(pl.col(col_clase) == "BAJA+2")
+        .then(GANANCIA_ACIERTO)  # Sumar si es BAJA+2
+        .otherwise(COSTO_ESTIMULO)  # Restar si es 0
+        .alias("ganancia_individual")
+    ])
+    
+    # Calcular ganancia acumulada
+    df_resultado = df_con_ganancia.with_columns([
+        pl.col("ganancia_individual").cum_sum().alias("ganancia_acumulada"),
+        (pl.arange(0, pl.len()) + 1).alias("cantidad_clientes")
+    ])
+    
+    # Seleccionar solo las columnas que quieres mantener
+    columnas_finales = [
+        "numero_de_cliente",      
+        col_clase,                  
+        col_probabilidad,         
+        "ganancia_individual",    
+        "ganancia_acumulada",     
+        "cantidad_clientes"       
+    ]
+    
+    return df_resultado.select(columnas_finales)
+
 
 
 def ganancia_evaluator_manual(y_true, y_pred):

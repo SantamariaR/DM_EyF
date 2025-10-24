@@ -1,9 +1,9 @@
-STUDY_NAME : "lgb_optimization_competencia01"
+STUDY_NAME : "prueba_24_10_1752"
 
 competencia01:
     DATA_PATH: "data/competencia_01_crudo.csv"
     SEMILLA: [143287, 146213, 310111, 670627, 880553]
-    MES_TRAIN: [202102]
+    MES_TRAIN: [202101,202102]
     MES_VALIDACION: [202103]
     MES_TEST: [202104]
     MES_FINAL: [202106]

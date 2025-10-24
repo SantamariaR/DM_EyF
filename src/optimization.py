@@ -8,7 +8,7 @@ import json
 import os
 from datetime import datetime
 from .config import *
-from .gain_function import calcular_ganancia, ganancia_evaluator_lgb,ganancia_evaluator_manual,calcular_ganancia_cortes
+from .gain_function import calcular_ganancia, ganancia_evaluator_lgb,ganancia_evaluator_manual,calcular_ganancia_cortes,calcular_ganancia_acumulada
 
 logger = logging.getLogger(__name__)
 
@@ -280,19 +280,24 @@ def evaluar_en_test(df, mejores_params) -> dict:
     logger.info(f"Período de test: {MES_TEST}")
   
     # Preparar datos de entrenamiento (TRAIN + VALIDACION)
-    if isinstance(MES_TRAIN, list):
-        periodos_entrenamiento = MES_TRAIN + [MES_VALIDACION]
-    else:
-        periodos_entrenamiento = [MES_TRAIN, MES_VALIDACION]
+#    if isinstance(MES_TRAIN, list):
+#        periodos_entrenamiento = MES_TRAIN + MES_VALIDACION
+#    else:
+#        periodos_entrenamiento = [MES_TRAIN, MES_VALIDACION]
     
+    # Períodos de evaliación
+    periodos_entrenamiento = MES_TRAIN
+    periodo_validacion = MES_VALIDACION
     periodo_test = MES_TEST
         
     logger.info(f"Períodos de entrenamiento: {periodos_entrenamiento}")
+    logger.info(f"Período de Validación: {periodo_validacion}")
     logger.info(f"Período de Testeo: {periodo_test}")
-  
+ 
     # Data preparación, train y test
     df_train = df.filter(pl.col("foto_mes").is_in(periodos_entrenamiento))
-    df_test = df.filter(pl.col("foto_mes") == periodo_test)
+    df_val = df.filter(pl.col("foto_mes").is_in(periodo_validacion))
+    df_test = df.filter(pl.col("foto_mes").is_in(periodo_test))
     
     # Separar clases(por si queremos undersampling )
     df_pos = df_train.filter(pl.col("clase_01") == 1)
@@ -310,21 +315,25 @@ def evaluar_en_test(df, mejores_params) -> dict:
     df_sub = df_sub.sample(fraction=1.0, shuffle=True, seed=SEMILLA[0]) 
     
 
-    # ===============================
-    # Preparar dataset para LightGBM
-    # ===============================
+    # ==================================================
+    # Preparar dataset para LightGBM, entrenar y testear
+    # ==================================================
     X = df_sub.drop(["clase_ternaria", "clase_01"]).to_pandas()
     y = df_sub["clase_01"].to_pandas()
 
     dtrain = lgb.Dataset(X, label=y)
+    
+    X_val = df_val.drop(["clase_ternaria", "clase_01"]).to_pandas()
+    y_val = df_val["clase_01"].to_pandas()
+    
+    val_data = lgb.Dataset(X_val, label=y_val) 
     
     # Para test sólo tomo como positivos BAJA+2
     X_test = df_test.drop(["clase_ternaria", "clase_01"]).to_pandas()
     y_test = df_test["clase_ternaria"].to_pandas()
     y_test = (y_test == "BAJA+2").astype(int)
     
-    #val_data = lgb.Dataset(X_val, label=y_val)
-    
+      
     logger.info(f"Train dataset listo: {X.shape}, Pos: {y.sum()}, Neg: {len(y)-y.sum()} ")
    
     # Listas para almacenar modelos y predicciones
@@ -343,8 +352,9 @@ def evaluar_en_test(df, mejores_params) -> dict:
         model = lgb.train(
             mejores_params,
             dtrain,
-            callbacks=[
-            lgb.early_stopping(stopping_rounds=50, verbose=True),
+            feval=ganancia_evaluator_lgb,
+            valid_sets=[val_data],
+            callbacks=[lgb.early_stopping(50), lgb.log_evaluation(0),
             lgb.log_evaluation(period=100)]
             
         )
@@ -357,46 +367,169 @@ def evaluar_en_test(df, mejores_params) -> dict:
         predicciones_test.append(y_pred_proba_single)    
 
     # Promediar las predicciones de test
-    y_pred_proba_ensemble = np.mean(predicciones_test, axis=0)  
-  
-    # Entrenar modelo con mejores parámetros
-    # ... Implementar entrenamiento y test con la logica de entrenamiento FINAL para mayor detalle
-    # recordar realizar todos los df necesarios y utilizar lgb.train()
-  
-    # Calcular solo la ganancia
-    cantidades, ganancias = calcular_ganancia_cortes(y_test, y_pred_proba_ensemble)
-  
-#    # Estadísticas básicas
-#    total_predicciones = len(y_pred_binary)
-#    predicciones_positivas = np.sum(y_pred_binary == 1)
-#    porcentaje_positivas = (predicciones_positivas / total_predicciones) * 100
-#  
-#    resultados = {
-#        'ganancia_test': float(ganancia_test),
-#        'total_predicciones': int(total_predicciones),
-#        'predicciones_positivas': int(predicciones_positivas),
-#        'porcentaje_positivas': float(porcentaje_positivas)
-#    }
-    # Encontrar el índice donde está la ganancia máxima
-    indice_max = np.argmax(ganancias)
-
-    #  Obtener la cantidad correspondiente
-    cantidad_optima = cantidades[indice_max]
-    ganancia_maxima = ganancias[indice_max]
-
-
-    logger.info(f"La mejor ganancia en test es: {cantidad_optima}, y ocurrio con {ganancia_maxima} envios")
+    y_pred_proba_ensemble = np.mean(predicciones_test, axis=0)
     
+    # Le añado la columna de predicciones al df_test original para análisis posterior si es necesario
+    df_test = df_test.with_columns([
+        pl.Series("pred_proba_ensemble", y_pred_proba_ensemble)
+    ])
+    
+    #logger.info(f"Datos de test con predicciones listos: {df_test.head()}")
+    # Calcular solo la ganancia
+    
+    # Calculamos las ganancias para distintos cortes
+    df_pred = calcular_ganancia_acumulada(df_test, col_probabilidad="pred_proba_ensemble", col_clase="clase_ternaria")
+  
+ 
+    return  df_pred
+
+
+
+def guardar_resultados_test(df_resultado, archivo_base=None):
+    """
+    Guarda los resultados de la evaluación en test (DataFrame de curva de ganancia) en un archivo JSON.
+    
+    Args:
+        df_resultado: DataFrame de Polars con la curva de ganancia
+        archivo_base: Nombre base del archivo (si es None, usa STUDY_NAME)
+    """
+    if archivo_base is None:
+        archivo_base = STUDY_NAME
+  
+    # Nombre del archivo único para todas las iteraciones
+    archivo = f"resultados/{archivo_base}_resultados_test_mes_{MES_TEST}.json"
+
+    # Función para convertir ndarray a lista - VERSIÓN CORREGIDA
+    def convertir_a_serializable(obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, (np.integer, np.int_, np.intc, np.intp, np.int8, np.int16, np.int32, np.int64)):
+            return int(obj)
+        elif isinstance(obj, (np.floating, np.float16, np.float32, np.float64)):
+            return float(obj)
+        elif isinstance(obj, np.bool_):
+            return bool(obj)
+        elif hasattr(obj, '__iter__') and not isinstance(obj, (str, dict)):
+            return [convertir_a_serializable(item) for item in obj]
+        elif isinstance(obj, dict):
+            return {key: convertir_a_serializable(value) for key, value in obj.items()}
+        else:
+            return obj
+    
+    # Convertir DataFrame a diccionario serializable
+    datos_dataframe = {}
+    for columna in df_resultado.columns:
+        datos_dataframe[columna] = convertir_a_serializable(df_resultado[columna].to_list())
+    
+    # Encontrar el punto de máxima ganancia
+    ganancia_maxima = df_resultado['ganancia_acumulada'].max()
+    cantidad_optima = df_resultado.filter(
+        pl.col('ganancia_acumulada') == ganancia_maxima
+    )['cantidad_clientes'].min()
+    
+    # Crear estructura de datos para guardar
+    resultados_test = {
+        "study_name": STUDY_NAME,
+        "mes_test": MES_TEST,
+        "fecha_evaluacion": datetime.now().isoformat(),
+        "datos_curva": datos_dataframe,
+        "resumen": {
+            "ganancia_maxima": float(ganancia_maxima),
+            "cantidad_optima_envios": int(cantidad_optima),
+            "total_clientes": len(df_resultado),
+            "ganancia_final": float(df_resultado['ganancia_acumulada'][-1])
+        }
+    }
+
+    # Cargar datos existentes si el archivo ya existe
+    if os.path.exists(archivo):
+        with open(archivo, 'r', encoding='utf-8') as f:
+            try:
+                datos_existentes = json.load(f)
+                if not isinstance(datos_existentes, list):
+                    datos_existentes = []
+            except json.JSONDecodeError:
+                datos_existentes = []
+    else:
+        datos_existentes = []
+  
+    # Agregar nueva iteración
+    datos_existentes.append(resultados_test)
+  
+    # Guardar todas las iteraciones en el archivo
+    with open(archivo, 'w', encoding='utf-8') as f:
+        json.dump(datos_existentes, f, indent=2, ensure_ascii=False)
+  
+    logger.info(f"Testeo del MES {MES_TEST} guardado en {archivo}")
+    logger.info(f"Ganancia máxima: {ganancia_maxima:,.0f} con {cantidad_optima} envíos")
+
+
+
+
+#def guardar_resultados_test(ganancias,cantidades, archivo_base=None):
+#    """
+#    Guarda los resultados de la evaluación en test en un archivo JSON.
+#    """
+#    # Guarda en resultados/{STUDY_NAME}_test_results.json
+#    # ... Implementar utilizando la misma logica que cuando guardamos una iteracion de la Bayesiana
+#
+#    if archivo_base is None:
+#        archivo_base = STUDY_NAME
 #  
-    return cantidades, ganancias
-
-
-
-def guardar_resultados_test(resultados_test, archivo_base=None):
-    """
-    Guarda los resultados de la evaluación en test en un archivo JSON.
-    """
-    # Guarda en resultados/{STUDY_NAME}_test_results.json
-    # ... Implementar utilizando la misma logica que cuando guardamos una iteracion de la Bayesiana
-
-
+#    # Nombre del archivo único para todas las iteraciones
+#    archivo = f"resultados/{archivo_base}_resultados_test_mes_{MES_TEST}.json"
+#
+#    # Función para convertir ndarray a lista
+#    def convertir_a_serializable(obj):
+#        if isinstance(obj, np.ndarray):
+#            return obj.tolist()
+#        elif isinstance(obj, (np.int_, np.intc, np.intp, np.int8, np.int16, np.int32, np.int64)):
+#            return int(obj)
+#        elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64)):
+#            return float(obj)
+#        elif isinstance(obj, np.bool_):
+#            return bool(obj)
+#        elif isinstance(obj, dict):
+#            return {key: convertir_a_serializable(value) for key, value in obj.items()}
+#        elif isinstance(obj, (list, tuple)):
+#            return [convertir_a_serializable(item) for item in obj]
+#        else:
+#            return obj
+#    
+#    # Convertir los datos a tipos serializables
+#    ganancias_serializable = convertir_a_serializable(ganancias)
+#    cantidades_serializable = convertir_a_serializable(cantidades)
+#    
+#    # Crear estructura de datos para guardar
+#    resultados_test = {
+#        "study_name": STUDY_NAME,
+#        "mes_test": MES_TEST,
+#        "fecha_evaluacion": datetime.now().isoformat(),
+#        "ganancias": ganancias_serializable,
+#        "cantidades": cantidades_serializable,
+#        "ganancia_total": float(sum(ganancias_serializable)) if ganancias_serializable else 0,
+#        "cantidad_total": int(sum(cantidades_serializable)) if cantidades_serializable else 0
+#    }
+#
+#    # Cargar datos existentes si el archivo ya existe
+#    if os.path.exists(archivo):
+#        with open(archivo, 'r') as f:
+#            try:
+#                datos_existentes = json.load(f)
+#                if not isinstance(datos_existentes, list):
+#                    datos_existentes = []
+#            except json.JSONDecodeError:
+#                datos_existentes = []
+#    else:
+#        datos_existentes = []
+#  
+#    # Agregar nueva iteración
+#    datos_existentes.append(resultados_test)
+#  
+#    # Guardar todas las iteraciones en el archivo
+#    with open(archivo, 'w') as f:
+#        json.dump(datos_existentes, f, indent=2)
+#  
+#    logger.info(f"Testeo del MES {MES_TEST} guardada en {archivo}")
+#    logger.info(f"Ganancia máxima: {np.max(ganancias):,.0f}")
+#
