@@ -11,6 +11,9 @@ from src.features import feature_engineering_lag, feature_engineering_delta_lag
 from src.config import *
 from src.optimization import optimizar,evaluar_en_test,guardar_resultados_test
 from src.best_params import cargar_mejores_hiperparametros
+from src.final_training import evaluar_en_predict
+from src.output_manager import guardar_resultados_predict
+from src.cleaning_features import train_overfit_lgbm, add_canaritos
 
 
 ## config basico logging
@@ -52,33 +55,54 @@ def main():
     df = feature_engineering_lag(df, columnas_lag, cant_lag=cant_lag)
     df = feature_engineering_delta_lag(df, columnas_lag, cant_lag=cant_lag)
     
-    #03 Convertir clase ternaria a target binario
-    df = convertir_clase_ternaria_a_target(df)
+    #03 Análisis e features sobre la clase ternaria(la idea es usar canaritos para podar features)
+    df_canaritos = add_canaritos(df)
     
-    # 4. Ejecutar optimización (función simple)
-    study = optimizar(df, n_trials= 1) 
+    modelo_canaritos = train_overfit_lgbm(df_canaritos)
     
-    # 5. Análisis adicional
-    logger.info("=== ANÁLISIS DE RESULTADOS ===")
-    trials_df = study.trials_dataframe()
-    if len(trials_df) > 0:
-        top_5 = trials_df.nlargest(5, 'value')
-        logger.info("Top 5 mejores trials:")
-        for idx, trial in top_5.iterrows():
-            logger.info(f"  Trial {trial['number']}: {trial['value']:,.0f}")
-  
-    logger.info("=== OPTIMIZACIÓN COMPLETADA ===")
+    print("Importancia de features del modelo con canaritos:")
+    importancia = modelo_canaritos.feature_importance(importance_type='gain')
+    nombres_features = modelo_canaritos.feature_name()
+    feature_importance = sorted(zip(nombres_features, importancia), key=lambda x: x[1], reverse=True)
+    for feature, imp in feature_importance:
+        print(f"{feature}: {imp}")
     
-    #05 Test en mes desconocido
-    logger.info("=== EVALUACIÓN EN CONJUNTO DE TEST ===")
-    # Cargar mejores hiperparámetros
-    mejores_params = cargar_mejores_hiperparametros()
-  
-    # Evaluar en test
-    df_pred = evaluar_en_test(df, mejores_params)
-  
-    # Guardar resultados de test
-    guardar_resultados_test(df_pred)
+#    #04 Convertir clase ternaria a target binario
+#    df = convertir_clase_ternaria_a_target(df)
+#    
+#    #05 . Ejecutar optimización (función simple)
+#    study = optimizar(df, n_trials= 5) 
+#    
+#    #06. Análisis adicional
+#    logger.info("=== ANÁLISIS DE RESULTADOS ===")
+#    trials_df = study.trials_dataframe()
+#    if len(trials_df) > 0:
+#        top_5 = trials_df.nlargest(5, 'value')
+#        logger.info("Top 5 mejores trials:")
+#        for idx, trial in top_5.iterrows():
+#            logger.info(f"  Trial {trial['number']}: {trial['value']:,.0f}")
+#  
+#    logger.info("=== OPTIMIZACIÓN COMPLETADA ===")
+#    
+#    #07 Test en mes desconocido
+#    logger.info("=== EVALUACIÓN EN CONJUNTO DE TEST ===")
+#    # Cargar mejores hiperparámetros
+#    mejores_params = cargar_mejores_hiperparametros()
+#  
+#    # Evaluar en test
+#    df_test = evaluar_en_test(df, mejores_params)
+#  
+#    # Guardar resultados de test
+#    guardar_resultados_test(df_test)
+#    
+#    logger.info("=== EVALUACIÓN EN TEST COMPLETADA ===")
+#    logger.info("=== COMIENZA PREDICCION FINAL PARA ENVÍOS ===")
+#    
+#    df_predic = evaluar_en_predict(df, mejores_params)
+#    
+#    guardar_resultados_predict(df_predic)
+    
+    #06 Predicción para envíos
     
     #02 Guardar dataset procesado
     #path_salida = "data/competencia_01_procesado.csv"

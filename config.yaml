@@ -1,4 +1,4 @@
-STUDY_NAME : "prueba_24_10_1752"
+STUDY_NAME : "prueba_25_10"
 
 competencia01:
     DATA_PATH: "data/competencia_01_crudo.csv"
@@ -6,7 +6,7 @@ competencia01:
     MES_TRAIN: [202101,202102]
     MES_VALIDACION: [202103]
     MES_TEST: [202104]
-    MES_FINAL: [202106]
+    MES_PREDIC: [202106]
     INICIO_ENVIOS: 5000
     FIN_ENVIOS: 25000
     PASO_ENVIOS: 500

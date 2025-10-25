@@ -18,7 +18,7 @@ try:
         MES_TRAIN = _cfg.get("MES_TRAIN", 202102)
         MES_VALIDACION = _cfg.get("MES_VALIDACION", 202103)
         MES_TEST = _cfg.get("MES_TEST", 202104)
-        MES_FINAL = _cfg.get("MES_FINAL", 202106)
+        MES_PREDIC = _cfg.get("MES_PREDIC", 202106)
         GANANCIA_ACIERTO = _cfg.get("GANANCIA_ACIERTO", None)
         COSTO_ESTIMULO = _cfg.get("COSTO_ESTIMULO", None)
         INICIO_ENVIOS = _cfg.get("INICIO_ENVIOS", None)
