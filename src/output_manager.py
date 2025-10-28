@@ -17,9 +17,14 @@ def guardar_resultados_predict(df_resultado, archivo_base=None):
     """
     if archivo_base is None:
         archivo_base = STUDY_NAME
+ 
+     # Crear carpeta para bases de datos si no existe
+    path_db = os.path.join(BUCKET_NAME, "exp")
+    os.makedirs(path_db, exist_ok=True)
   
-    # Nombre del archivo CSV
-    archivo_csv = f"predict/{archivo_base}_predict_mes_{MES_PREDIC}.csv"
+    # Ruta completa de la base de datos
+    archivo_csv = os.path.join(path_db, f"{archivo_base}_predict_mes_{MES_PREDIC}.csv")
+
     
     # Crear directorio si no existe
     os.makedirs("predict", exist_ok=True)
