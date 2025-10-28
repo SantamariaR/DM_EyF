@@ -214,9 +214,13 @@ def guardar_iteracion(trial, ganancia, archivo_base=None):
     """
     if archivo_base is None:
         archivo_base = STUDY_NAME
+        
+    # Crear carpeta para bases de datos si no existe
+    path_db = os.path.join(BUCKET_NAME, "exp")
+    os.makedirs(path_db, exist_ok=True)
   
     # Nombre del archivo único para todas las iteraciones
-    archivo = f"resultados/{archivo_base}_iteraciones.json"
+    archivo = os.path.join(path_db, f"{archivo_base}_iteraciones.json")
   
     # Datos de esta iteración
     iteracion_data = {
@@ -420,13 +424,15 @@ def guardar_resultados_test(df_resultado, archivo_base=None):
     """
     if archivo_base is None:
         archivo_base = STUDY_NAME
+
+    # Crear carpeta para bases de datos si no existe
+    path_db = os.path.join(BUCKET_NAME, "exp")
+    os.makedirs(path_db, exist_ok=True)
   
-    # Nombre del archivo CSV
-    archivo_csv = f"resultados/{archivo_base}_test_mes_{MES_TEST}.csv"
+    # Nombre del archivo único para todas las iteraciones
+    archivo_csv = os.path.join(path_db, f"{archivo_base}_test_mes_{MES_TEST}.csv")
     
-    # Crear directorio si no existe
-    os.makedirs("resultados", exist_ok=True)
-    
+   
     # Guardar directamente como CSV desde Polars
     df_resultado.write_csv(archivo_csv)
     
