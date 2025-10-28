@@ -5,7 +5,7 @@ STUDY_NAME : "prueba__todas_columnas_v2"
 BUCKET_NAME: "/home/rami_santamaria92/buckets/b1"
 
 competencia01:
-    DATA_PATH: "/content/datasets/competencia_01.csv.gz"
+    DATA_PATH: "/content/datasets/competencia_01_crudo.csv"
     DATA_PATH_LOCAL: "data/competencia_01_crudo.csv"
     SEMILLA: [143287, 146213, 310111, 670627, 880553]
     MES_TRAIN: [202101,202102]
