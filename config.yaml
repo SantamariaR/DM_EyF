@@ -1,6 +1,8 @@
-STUDY_NAME : "prueba_25_10"
+STUDY_NAME : "prueba__todas_columnas_v2"
 
-BUCKET_NAME: "resultados"
+#BUCKET_NAME: "resultados"
+
+BUCKET_NAME: "/home/rami_santamaria92/buckets/b1"
 
 competencia01:
     DATA_PATH: "/content/datasets/competencia_01.csv.gz"
@@ -15,7 +17,7 @@ competencia01:
     PASO_ENVIOS: 500
     GANANCIA_ACIERTO: 780000
     COSTO_ESTIMULO: -20000
-    UNDERSUMPLING: 0.01
+    UNDERSUMPLING: 0.3
     
 
 

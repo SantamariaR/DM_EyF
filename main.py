@@ -40,7 +40,7 @@ def main():
     os.makedirs("logs", exist_ok=True)
 
     #00 Cargar dataset 
-    path_data = DATA_PATH_LOCAL    
+    path_data = DATA_PATH
     df = cargar_datos(path_data)
     logger.info(f"Cargado el dataset:{path_data}")
     
@@ -50,8 +50,15 @@ def main():
     
         
     #02 Feature Engineering - Lags
-    columnas_lag = ["ctrx_quarter"]
-    cant_lag = 1
+    # Ordeno y después genero lags
+    df = df.sort(["numero_de_cliente", "foto_mes"])
+    # Columnas a excluir
+    excluir = ["numero_de_cliente", "foto_mes", "clase_ternaria"]
+    # Obtener columnas para aplicar lags
+    columnas_lag = [col for col in df.columns if col not in excluir]
+    
+#    columnas_lag = ["ctrx_quarter"]
+    cant_lag = 2
     df = feature_engineering_lag(df, columnas_lag, cant_lag=cant_lag)
     df = feature_engineering_delta_lag(df, columnas_lag, cant_lag=cant_lag)
     
@@ -74,7 +81,7 @@ def main():
     df = convertir_clase_ternaria_a_target(df)
     
     #05 . Ejecutar optimización (función simple)
-    study = optimizar(df, n_trials= 15,undersampling=UNDERSUMPLING) 
+    study = optimizar(df, n_trials= 50,undersampling=UNDERSUMPLING) 
     
     #06. Análisis adicional
     logger.info("=== ANÁLISIS DE RESULTADOS ===")

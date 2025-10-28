@@ -216,7 +216,7 @@ def guardar_iteracion(trial, ganancia, archivo_base=None):
         archivo_base = STUDY_NAME
   
     # Nombre del archivo único para todas las iteraciones
-    archivo = f"resultados/optuna_db/{archivo_base}_iteraciones.json"
+    archivo = f"resultados/{archivo_base}_iteraciones.json"
   
     # Datos de esta iteración
     iteracion_data = {
@@ -501,6 +501,7 @@ def crear_o_cargar_estudio(study_name: str = None, semilla: int = None) -> optun
     study = optuna.create_study(
         direction='maximize',
         study_name=study_name,
+        storage=storage,
         sampler=optuna.samplers.TPESampler(seed=SEMILLA[0] if isinstance(SEMILLA, list) else SEMILLA)
     )
 
