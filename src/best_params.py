@@ -1,6 +1,7 @@
 import json
 import logging
-from .config import STUDY_NAME
+from .config import STUDY_NAME,BUCKET_NAME
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +17,13 @@ def cargar_mejores_hiperparametros(archivo_base: str = None) -> dict:
     """
     if archivo_base is None:
         archivo_base = STUDY_NAME
+        
+     # Crear carpeta para bases de datos si no existe
+    path_db = os.path.join(BUCKET_NAME, "exp")
+    os.makedirs(path_db, exist_ok=True)
   
-    archivo = f"resultados/{archivo_base}_iteraciones.json"
+    # Ruta completa de la base de datos
+    archivo = os.path.join(path_db, f"{archivo_base}_iteraciones.json")
   
     try:
         with open(archivo, 'r') as f:
@@ -61,7 +67,12 @@ def obtener_estadisticas_optuna(archivo_base=None):
     if archivo_base is None:
         archivo_base = STUDY_NAME
   
-    archivo = f"resultados/{archivo_base}_iteraciones.json"
+     # Crear carpeta para bases de datos si no existe
+    path_db = os.path.join(BUCKET_NAME, "exp")
+    os.makedirs(path_db, exist_ok=True)
+  
+    # Ruta completa de la base de datos
+    archivo = os.path.join(path_db, f"{archivo_base}_iteraciones.json")
   
     try:
         with open(archivo, 'r') as f:
