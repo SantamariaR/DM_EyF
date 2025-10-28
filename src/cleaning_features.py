@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def add_canaritos(df: pl.DataFrame, 
                           seed: int = 102191,
-                          canaritos_ratio: float = 0.25,
+                          canaritos_ratio: float = 0.5,
                           columns_to_ignore: List[str] = None) -> pl.DataFrame:
     """
     Réplica exacta del comportamiento de R que muestras:
