@@ -5,14 +5,15 @@ import numpy as np
 import logging
 import polars as pl
 from typing import List
-from .config import MES_TRAIN, MES_VALIDACION
+from .config import MES_TRAIN, MES_VALIDACION, SEMILLA
+from .gain_function import ganancia_evaluator_lgb
 
 logger = logging.getLogger(__name__)
 
 def add_canaritos(df: pl.DataFrame, 
                           seed: int = 102191,
                           canaritos_ratio: float = 0.25,
-                          columns_to_drop: List[str] = None) -> pl.DataFrame:
+                          columns_to_ignore: List[str] = None) -> pl.DataFrame:
     """
     Réplica exacta del comportamiento de R que muestras:
     - Elimina columnas específicas
@@ -33,40 +34,28 @@ def add_canaritos(df: pl.DataFrame,
     # Configurar semilla
     np.random.seed(seed)
     
-    # Columnas por defecto a eliminar 
-    if columns_to_drop is None:
-        columns_to_drop = ['numero_de_cliente', 'clase_ternaria', 'foto_mes']
+    # Columnas por defecto a ignorar
+    if columns_to_ignore is None:
+        columns_to_ignore = ['numero_de_cliente', 'clase_ternaria', 'foto_mes']
     
-    # 1. Crear copia y eliminar columnas específicas
-    df_canaritos = df.clone()
-    
-    # Filtrar solo las columnas que existen en el DataFrame
-    existing_columns_to_drop = [col for col in columns_to_drop if col in df_canaritos.columns]
-    if existing_columns_to_drop:
-        df_canaritos = df_canaritos.drop(existing_columns_to_drop)
-    
-    # 2. Añadir columna 'azar' con distribución uniforme
-    azar_values = np.random.uniform(0, 1, len(df_canaritos))
-    df_canaritos = df_canaritos.with_columns(
+    # 1. Crear copia y añadir columna 'azar'
+    azar_values = np.random.uniform(0, 1, len(df))
+    df_canaritos = df.with_columns(
         pl.Series('azar', azar_values)
     )
     
-    # 3. Ordenar por 'azar' (mantiene relaciones entre variables)
+    # 2. Ordenar por 'azar' (mantiene relaciones entre variables)
     df_canaritos = df_canaritos.sort('azar')
     
-    # 4. Eliminar columna 'azar'
-    df_canaritos = df_canaritos.drop('azar')
+    # 3. Calcular número de canaritos basado en columnas NO ignoradas
+    # Excluimos 'azar' y las columnas a ignorar del cálculo
+    columns_for_canaritos_count = [col for col in df.columns 
+                                   if col not in columns_to_ignore]
+    n_original_features = len(columns_for_canaritos_count)
+    n_canaritos = max(1, int(n_original_features * canaritos_ratio))
     
-    # 5. Calcular número de canaritos a añadir
-    n_original_features = len(df_canaritos.columns)
-    n_canaritos = int(n_original_features * canaritos_ratio)
-    
-    if n_canaritos == 0:
-        n_canaritos = 1
-    
-    # 6. Añadir features canaritos
+    # 4. Añadir features canaritos al DataFrame ordenado
     for i in range(n_canaritos):
-        # Generar datos aleatorios normales
         random_data = np.random.normal(0, 1, len(df_canaritos))
         canarito_name = f'canarito_{i:03d}'
         
@@ -74,9 +63,12 @@ def add_canaritos(df: pl.DataFrame,
             pl.Series(canarito_name, random_data)
         )
     
+    # 5. Eliminar columna 'azar' (ya cumplió su función de ordenar)
+    df_canaritos = df_canaritos.drop('azar')
+    
     print(f"✅ Proceso completado con semilla: {seed}")
-    print(f"📊 Columnas eliminadas: {existing_columns_to_drop}")
-    print(f"🎯 Features originales: {n_original_features}")
+    print(f"📊 Columnas ignoradas: {columns_to_ignore}")
+    print(f"🎯 Features originales (para cálculo): {n_original_features}")
     print(f"🔔 Features canaritos añadidas: {n_canaritos}")
     print(f"📈 Features totales: {len(df_canaritos.columns)}")
     
@@ -84,7 +76,7 @@ def add_canaritos(df: pl.DataFrame,
 
 
 
-def train_overfit_lgbm(df: pl.DataFrame, objective: str = 'multiclass', num_class: int = 3) -> lgb.Booster:
+def train_overfit_lgbm_features(df: pl.DataFrame, objective: str = 'binary', num_class: int = None) -> lgb.Booster:
     
     """
     Entrenamos un modelo lightGBM hasta el sobreajuste total para detectar features inútiles (canaritos).
@@ -97,8 +89,8 @@ def train_overfit_lgbm(df: pl.DataFrame, objective: str = 'multiclass', num_clas
     """
     params = {
         'objective': objective,
-        'metric': 'multi_logloss',
-        'num_class': num_class,
+        #'metric': 'binary_logloss',
+        #'num_class': num_class,
         'boosting_type': 'gbdt',
         
        
@@ -132,17 +124,70 @@ def train_overfit_lgbm(df: pl.DataFrame, objective: str = 'multiclass', num_clas
     # ==================================================
     # Preparar dataset para LightGBM, entrenar y testear
     # ==================================================
-    X = df_train.drop(["clase_ternaria"]).to_pandas()
-    y = df_train["clase_ternaria"].to_pandas()
+    # Mapeo clase_ternaria a numérico
+    mapping = {'CONTINUA': 0, 'BAJA+1': 1, 'BAJA+2': 1}
+    
+    X = df_train.drop(["clase_ternaria","numero_de_cliente"]).to_pandas()
+    y = df_train["clase_ternaria"].to_pandas().map(mapping)
 
     dtrain = lgb.Dataset(X, label=y)
     
-    modelo = lgb.train(
-        params,
-        dtrain,
-        num_boost_round=500,
-        callbacks=[lgb.early_stopping(stopping_rounds=50)]
-    )
+    # Diccionario para acumular importancias
+    feature_importance_total = {}
     
-    return modelo
+    #modelos = []
+    
+    # Entrenar 5 modelos con diferentes semillas
+    for i, semilla in enumerate(SEMILLA):
+        logger.info(f"\n--- Entrenando modelo {i+1} con semilla {semilla} ---")
+        
+        # Actualizar la semilla en los parámetros
+        params['seed'] = semilla
+        params['feature_fraction_seed'] = semilla
+        params['bagging_seed'] = semilla
+        
+        # Entrenar modelo
+        model = lgb.train(
+            params,
+            dtrain,
+            feval=ganancia_evaluator_lgb,
+            num_boost_round=100            
+        )
+        #modelos.append(model)
+        # Obtener importancia de features
+        importance = model.feature_importance(importance_type='gain')
+        feature_names = model.feature_name()
+        
+        # Acumular importancias
+        for feature, imp in zip(feature_names, importance):
+            if feature not in feature_importance_total:
+                feature_importance_total[feature] = 0
+            feature_importance_total[feature] += imp
+        
+        print(f"✅ Modelo {i+1}/{5} completado (seed: {semilla})")
+        
+    # Calcular importancia promedio
+    feature_importance_avg = {k: v / 5 for k, v in feature_importance_total.items()}
+    
+    # Ordenar por importancia
+    feature_importance_sorted = dict(sorted(
+        feature_importance_avg.items(), 
+        key=lambda x: x[1], 
+        reverse=True
+    ))
+    
+    print(f"\n📊 Resumen de importancia de features ({5} modelos):")
+    print(f"🔝 Top 10 features más importantes:")
+    for i, (feature, importance) in enumerate(list(feature_importance_sorted.items())[:10]):
+        print(f"  {i+1:2d}. {feature}: {importance:.4f}")
+    
+    print(f"\n🔚 Bottom 10 features menos importantes:")
+    for i, (feature, importance) in enumerate(list(feature_importance_sorted.items())[-10:]):
+        print(f"  {i+1:2d}. {feature}: {importance:.4f}")
+    
+    return feature_importance_sorted
+
+
+
+
 

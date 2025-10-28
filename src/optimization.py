@@ -91,8 +91,8 @@ def objetivo_ganancia(trial: optuna.trial.Trial, df: pl.DataFrame, undersampling
 
 
     # Polars no tiene sample(frac=...), pero podemos calcular cuántas filas queremos
-#    n_sample = int(df_neg.height * frac)
-#    df_neg_sample = df_neg.sample(n=n_sample, seed=SEMILLA + trial.number)
+    n_sample = int(df_neg.height * undersampling)
+    df_neg = df_neg.sample(n=n_sample, seed=SEMILLA[0] + trial.number)
 
     # Concatenar positivos y negativos muestreados
     df_sub = pl.concat([df_pos, df_neg])
@@ -171,37 +171,36 @@ def objetivo_ganancia(trial: optuna.trial.Trial, df: pl.DataFrame, undersampling
     return ganancia_ensemble
 
 
-def optimizar(df: pl.DataFrame, n_trials: int = 1) -> optuna.Study:
-    """
-    Ejecuta optimización bayesiana de hiperparámetros usando configuración YAML.
-    """
-
-    study_name = STUDY_NAME
-
-    logger.info(f"Iniciando optimización ")
-    logger.info(f"Configuración: períodos Entrenamiento={MES_TRAIN }, Validación={MES_VALIDACION}")
-
-     # Crear estudio
-    study = optuna.create_study(
-        direction='maximize',
-        study_name=study_name,
-        sampler=optuna.samplers.TPESampler(seed=SEMILLA[0] if isinstance(SEMILLA, list) else SEMILLA)
-    )
-  
-    # Ejecutar optimización
-    study.optimize(lambda trial: objetivo_ganancia(trial, df), n_trials=n_trials)
-
-#    # Normalización de parámetros
-#    update_dict = {
-#        'min_data_in_leaf': round(study.best_params['min_data_in_leaf'] / HIPERPARAM_BO['UNDERSUMPLING'])
-#    }
-    #study.best_params.update(update_dict)
-
-    logger.info(f"Mejor ganancia: {study.best_value:,.0f}")
-    logger.info(f"Mejores parámetros: {study.best_params}")
-
-    return study
-
+#def optimizar(df: pl.DataFrame, n_trials: int = 1) -> optuna.Study:
+#    """
+#    Ejecuta optimización bayesiana de hiperparámetros usando configuración YAML.
+#    """
+#
+#    study_name = STUDY_NAME
+#
+#    logger.info(f"Iniciando optimización ")
+#    logger.info(f"Configuración: períodos Entrenamiento={MES_TRAIN }, Validación={MES_VALIDACION}")
+#
+#     # Crear estudio
+#    study = optuna.create_study(
+#        direction='maximize',
+#        study_name=study_name,
+#        sampler=optuna.samplers.TPESampler(seed=SEMILLA[0] if isinstance(SEMILLA, list) else SEMILLA)
+#    )
+#  
+#    # Ejecutar optimización
+#    study.optimize(lambda trial: objetivo_ganancia(trial, df), n_trials=n_trials)
+#
+##    # Normalización de parámetros
+##    update_dict = {
+##        'min_data_in_leaf': round(study.best_params['min_data_in_leaf'] / HIPERPARAM_BO['UNDERSUMPLING'])
+##    }
+#    #study.best_params.update(update_dict)
+#
+#    logger.info(f"Mejor ganancia: {study.best_value:,.0f}")
+#    logger.info(f"Mejores parámetros: {study.best_params}")
+#
+#    return study
 
 
 def guardar_iteracion(trial, ganancia, archivo_base=None):
@@ -217,7 +216,7 @@ def guardar_iteracion(trial, ganancia, archivo_base=None):
         archivo_base = STUDY_NAME
   
     # Nombre del archivo único para todas las iteraciones
-    archivo = f"resultados/{archivo_base}_iteraciones.json"
+    archivo = f"resultados/optuna_db/{archivo_base}_iteraciones.json"
   
     # Datos de esta iteración
     iteracion_data = {
@@ -313,17 +312,10 @@ def evaluar_en_test(df, mejores_params) -> dict:
     
     # Actualizar parámetros con los sugeridos por Optuna
     params.update(mejores_params)
-    
-    
+   
     logger.info("=== EVALUACIÓN EN CONJUNTO DE TEST ===")
     logger.info(f"Período de test: {MES_TEST}")
   
-    # Preparar datos de entrenamiento (TRAIN + VALIDACION)
-#    if isinstance(MES_TRAIN, list):
-#        periodos_entrenamiento = MES_TRAIN + MES_VALIDACION
-#    else:
-#        periodos_entrenamiento = [MES_TRAIN, MES_VALIDACION]
-    
     # Períodos de evaliación
     periodos_entrenamiento = MES_TRAIN
     periodo_validacion = MES_VALIDACION
@@ -341,11 +333,6 @@ def evaluar_en_test(df, mejores_params) -> dict:
     # Separar clases(por si queremos undersampling )
     df_pos = df_train.filter(pl.col("clase_01") == 1)
     df_neg = df_train.filter(pl.col("clase_01") == 0)
-
-
-    # Polars no tiene sample(frac=...), pero podemos calcular cuántas filas queremos
-#    n_sample = int(df_neg.height * frac)
-#    df_neg_sample = df_neg.sample(n=n_sample, seed=SEMILLA + trial.number)
 
     # Concatenar positivos y negativos muestreados
     df_sub = pl.concat([df_pos, df_neg])
@@ -459,6 +446,128 @@ def guardar_resultados_test(df_resultado, archivo_base=None):
     logger.info(f"Ganancia máxima: {ganancia_maxima:,.0f} con {cantidad_optima} envíos")
     logger.info(f"Total de registros: {len(df_resultado):,}")
 
+
+
+def crear_o_cargar_estudio(study_name: str = None, semilla: int = None) -> optuna.Study:
+    """
+    Crea un nuevo estudio de Optuna o carga uno existente desde SQLite.
+  
+    Args:
+        study_name: Nombre del estudio (si es None, usa STUDY_NAME del config)
+        semilla: Semilla para reproducibilidad
+  
+    Returns:
+        optuna.Study: Estudio de Optuna (nuevo o cargado)
+    """
+    study_name = STUDY_NAME
+  
+    if semilla is None:
+        semilla = SEMILLA[0] if isinstance(SEMILLA, list) else SEMILLA
+  
+    # Crear carpeta para bases de datos si no existe
+    path_db = os.path.join(BUCKET_NAME, "optuna_db")
+    os.makedirs(path_db, exist_ok=True)
+  
+    # Ruta completa de la base de datos
+    db_file = os.path.join(path_db, f"{study_name}.db")
+    storage = f"sqlite:///{db_file}"
+  
+    # Verificar si existe un estudio previo
+    if os.path.exists(db_file):
+        logger.info(f"⚡ Base de datos encontrada: {db_file}")
+        logger.info(f"🔄 Cargando estudio existente: {study_name}")
+  
+        try:
+            #PRESTAR ATENCION Y RAZONAR!!!
+            study = optuna.load_study(study_name=study_name, storage=storage)
+            n_trials_previos = len(study.trials)
+  
+            logger.info(f"✅ Estudio cargado exitosamente")
+            logger.info(f"📊 Trials previos: {n_trials_previos}")
+  
+            if n_trials_previos > 0:
+                logger.info(f"🏆 Mejor ganancia hasta ahora: {study.best_value:,.0f}")
+  
+            return study
+  
+        except Exception as e:
+            logger.warning(f"⚠️ No se pudo cargar el estudio: {e}")
+            logger.info(f"🆕 Creando nuevo estudio...")
+    else:
+        logger.info(f"🆕 No se encontró base de datos previa")
+        logger.info(f"📁 Creando nueva base de datos: {db_file}")
+  
+     # Crear estudio
+    study = optuna.create_study(
+        direction='maximize',
+        study_name=study_name,
+        sampler=optuna.samplers.TPESampler(seed=SEMILLA[0] if isinstance(SEMILLA, list) else SEMILLA)
+    )
+
+  
+    logger.info(f"✅ Nuevo estudio creado: {study_name}")
+    logger.info(f"💾 Storage: {storage}")
+  
+    return study
+
+
+def optimizar(df: pd.DataFrame, n_trials: int, study_name: str = None, undersampling: float = 0.01) -> optuna.Study:
+    """
+    Args:
+        df: DataFrame con datos
+        n_trials: Número de trials a ejecutar
+        study_name: Nombre del estudio (si es None, usa el de config.yaml)
+        undersampling: Undersampling para entrenamiento
+  
+    Description:
+       Ejecuta optimización bayesiana de hiperparámetros usando configuración YAML.
+       Guarda cada iteración en un archivo JSON separado. 
+       Pasos:
+        1. Crear estudio de Optuna
+        2. Ejecutar optimización
+        3. Retornar estudio
+
+    Returns:
+        optuna.Study: Estudio de Optuna con resultados
+    """
+
+    study_name = STUDY_NAME
+
+    logger.info(f"Iniciando optimización con {n_trials} trials")
+    logger.info(f"Configuración: TRAIN={MES_TRAIN}, VALID={MES_VALIDACION}, SEMILLA={SEMILLA}")
+  
+    # Crear o cargar estudio desde DuckDB
+    study = crear_o_cargar_estudio(study_name, SEMILLA)
+
+    # Calcular cuántos trials faltan
+    trials_previos = len(study.trials)
+    trials_a_ejecutar = max(0, n_trials - trials_previos)
+  
+    if trials_previos > 0:
+        logger.info(f"🔄 Retomando desde trial {trials_previos}")
+        logger.info(f"📝 Trials a ejecutar: {trials_a_ejecutar} (total objetivo: {n_trials})")
+    else:
+        logger.info(f"🆕 Nueva optimización: {n_trials} trials")
+  
+    # Ejecutar optimización
+    if trials_a_ejecutar > 0:
+        ##LO UNICO IMPORTANTE DEL METODO Y EL study CLARO
+        study.optimize(lambda trial: objetivo_ganancia(trial, df, undersampling), n_trials=trials_a_ejecutar)
+        
+        
+        logger.info(f"🏆 Mejor ganancia: {study.best_value:,.0f}")
+        logger.info(f"Mejores parámetros: {study.best_params}")
+    else:
+        logger.info(f"✅ Ya se completaron {n_trials} trials")
+
+    # Normalización de parámetros
+    update_dict = {
+        'min_data_in_leaf': round(study.best_params['min_data_in_leaf'] / UNDERSUMPLING)
+    }
+    study.best_params.update(update_dict)
+    logger.info(f"Parámetros normalizados: {study.best_params}")
+    logger.info(f"Undersampling aplicado: {UNDERSUMPLING}")
+    return study
 
 #def guardar_resultados_test(df_resultado, archivo_base=None):
 #    """
