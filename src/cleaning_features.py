@@ -189,18 +189,28 @@ def train_overfit_lgbm_features(df: pl.DataFrame, objective: str = 'binary', num
         
     if archivo_base is None:
         archivo_base = STUDY_NAME
- 
-     # Crear carpeta para bases de datos si no existe
+    
+    # Crear carpeta para bases de datos si no existe
     path_db = os.path.join(BUCKET_NAME, "exp")
     os.makedirs(path_db, exist_ok=True)
-  
+    
     # Ruta completa de la base de datos
     archivo_csv = os.path.join(path_db, f"{archivo_base}_feature_importance.csv")
     
-    df_feature_importance = pd.DataFrame(feature_importance_sorted)
-
-    df_feature_importance.to_csv(archivo_csv, index = False)
-    logger.info(f"Importancia de features guardada en {archivo_csv}")
+    # ✅ FORMA CORRECTA: Crear DataFrame con dos columnas
+    df_feature_importance = pd.DataFrame(
+        list(feature_importance_sorted.items()),  # Convertir a lista de tuplas
+        columns=['Feature', 'Importance']         # Nombres de columnas
+    )
+    
+    # ✅ FORMA ALTERNATIVA: Desde el diccionario original
+    # df_feature_importance = pd.DataFrame([
+    #     {'Feature': k, 'Importance': v} 
+    #     for k, v in feature_importance_sorted.items()
+    # ])
+    
+    df_feature_importance.to_csv(archivo_csv, index=False)
+    logger.info(f"✅ Feature importance guardado en: {archivo_csv}")
     return feature_importance_sorted
 
 
