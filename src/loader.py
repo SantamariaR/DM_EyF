@@ -15,7 +15,7 @@ def cargar_datos(path: str) -> pl.DataFrame | None:
 
     logger.info(f"Cargando dataset desde {path}")
     try:
-        df = pl.read_csv(path, infer_schema_length=30000)
+        df = pl.read_csv(path, infer_schema_length=1000000)
         logger.info(f"Dataset cargado con {df.shape[0]} filas y {df.shape[1]} columnas")
         return df
     except Exception as e:
