@@ -45,13 +45,23 @@ def feature_engineering_delta_lag(df: pl.DataFrame, columnas: list[str], cant_la
     if not columnas:
         return df
 
-    columnas_existentes = [col for col in columnas if col in df.columns]
+    # Filtrar solo columnas numéricas existentes
+    columnas_numericas = []
+    for col in columnas:
+        if col in df.columns:
+            if df[col].dtype in [pl.Int8, pl.Int16, pl.Int32, pl.Int64, 
+                                pl.UInt8, pl.UInt16, pl.UInt32, pl.UInt64,
+                                pl.Float32, pl.Float64]:
+                columnas_numericas.append(col)
+            else:
+                logger.warning(f"Columna {col} ignorada porque no es numérica (tipo: {df[col].dtype})")
     
+    if not columnas_numericas:
+        return df
+
     delta_expressions = []
-    for attr in columnas_existentes:
+    for attr in columnas_numericas:
         for i in range(1, cant_lag + 1):
-            # Delta lag = (valor - lag_i) - (lag_i - lag_{i+1}) simplificado
-            # Pero más simple: delta_lag_i = lag_{i-1} - lag_i
             current_lag = pl.col(attr).shift(i-1).over("numero_de_cliente")
             next_lag = pl.col(attr).shift(i).over("numero_de_cliente")
             delta_expr = (current_lag - next_lag).alias(f"{attr}_delta_lag_{i}")
@@ -60,5 +70,6 @@ def feature_engineering_delta_lag(df: pl.DataFrame, columnas: list[str], cant_la
     df_result = df.with_columns(delta_expressions)
     
     logger.info(f"Delta LAGS completado. DataFrame resultante con {len(df_result.columns)} columnas")
+    logger.info(f"Columnas procesadas: {columnas_numericas}")
 
     return df_result
