@@ -5,8 +5,9 @@ import numpy as np
 import logging
 import polars as pl
 from typing import List
-from .config import MES_TRAIN, MES_VALIDACION, SEMILLA
+from .config import MES_TRAIN, MES_VALIDACION, SEMILLA, BUCKET_NAME, STUDY_NAME
 from .gain_function import ganancia_evaluator_lgb
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -184,9 +185,22 @@ def train_overfit_lgbm_features(df: pl.DataFrame, objective: str = 'binary', num
     print(f"\n🔚 Bottom 10 features menos importantes:")
     for i, (feature, importance) in enumerate(list(feature_importance_sorted.items())[-10:]):
         print(f"  {i+1:2d}. {feature}: {importance:.4f}")
+        
+    if archivo_base is None:
+        archivo_base = STUDY_NAME
+ 
+     # Crear carpeta para bases de datos si no existe
+    path_db = os.path.join(BUCKET_NAME, "exp")
+    os.makedirs(path_db, exist_ok=True)
+  
+    # Ruta completa de la base de datos
+    archivo_csv = os.path.join(path_db, f"{archivo_base}_feature_importance.csv")
+    
+    df_feature_importance = pl.DataFrame(feature_importance_sorted)
+
+    df_feature_importance.to_csv(archivo_csv)
     
     return feature_importance_sorted
-
 
 
 

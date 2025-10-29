@@ -1,4 +1,4 @@
-STUDY_NAME : "canaritos"
+STUDY_NAME : "canaritos_V2"
 
 #BUCKET_NAME: "resultados"
 
@@ -17,7 +17,7 @@ competencia01:
     PASO_ENVIOS: 500
     GANANCIA_ACIERTO: 780000
     COSTO_ESTIMULO: -20000
-    UNDERSUMPLING: 0.3
+    UNDERSUMPLING: 0.4
     
 
 
