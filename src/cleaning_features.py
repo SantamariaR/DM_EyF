@@ -199,7 +199,7 @@ def train_overfit_lgbm_features(df: pl.DataFrame, objective: str = 'binary', num
     
     df_feature_importance = pd.DataFrame(feature_importance_sorted)
 
-    df_feature_importance.to_csv(archivo_csv, ignore_index=True)
+    df_feature_importance.to_csv(archivo_csv, index = False)
     logger.info(f"Importancia de features guardada en {archivo_csv}")
     return feature_importance_sorted
 
