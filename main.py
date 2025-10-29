@@ -67,7 +67,7 @@ def main():
    
     modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos)
     
-    df = seleccionar_variables_por_canaritos(modelo_canaritos_features,porcentaje_umbral=0.05,df_original=df)
+    df = seleccionar_variables_por_canaritos(modelo_canaritos_features,porcentaje_umbral=0.05,df=df)
    
 #    print("=== Análisis de importancia de features con canaritos ===")
 #    print(modelo_canaritos_features)
