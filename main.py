@@ -116,10 +116,6 @@ def main():
     guardar_resultados_predict(df_predic)
     
     
-    #02 Guardar dataset procesado
-    #path_salida = "data/competencia_01_procesado.csv"
-    #df.write_csv(path_salida)
-
     # Mostrar primeras filas en consola
     print(df.head())
 
@@ -127,9 +123,9 @@ def main():
 #    filas, columnas = df.shape
 #    mensaje = f"[{datetime.datetime.now()}] Dataset cargado con {filas} filas y {columnas} columnas\n"
 #    # Guardar log en archivo
-#    with open("logs/logs.txt", "a", encoding="utf-8") as f:
+#    with open(f"{BUCKET_NAME}/logs_{STUDY_NAME}.txt", "a", encoding="utf-8") as f:
 #        f.write(mensaje)
-
+#
 #    print(">>> Ejecución finalizada. Revisa logs/logs.txt")
 
 
