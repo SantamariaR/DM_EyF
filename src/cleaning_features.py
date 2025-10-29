@@ -190,22 +190,12 @@ def train_overfit_lgbm_features(df: pl.DataFrame, objective: str = 'binary', num
 
 
 
-
 def seleccionar_variables_por_canaritos(feature_importance_sorted: dict, 
                                       df: pl.DataFrame, 
                                       porcentaje_umbral: float = 0.05) -> pl.DataFrame:
     """
-    Selecciona variables importantes basándose en el porcentaje de canaritos que superan.
-    
-    Args:
-        feature_importance_sorted: Diccionario con importancias de features (incluyendo canaritos)
-        df: DataFrame original con todas las variables
-        porcentaje_umbral: Porcentaje de canaritos que deben quedar por debajo (0.05 = 5%)
-    
-    Returns:
-        DataFrame filtrado con solo las variables importantes
+    Versión optimizada que evita duplicados usando conjuntos
     """
-    
     # Identificar canaritos
     canaritos = [feature for feature in feature_importance_sorted.keys() 
                 if feature.startswith('canarito')]
@@ -214,46 +204,40 @@ def seleccionar_variables_por_canaritos(feature_importance_sorted: dict,
         logger.warning("⚠️ No se encontraron variables canarito en las importancias")
         return df
     
-    logger.info(f"🔍 Encontrados {len(canaritos)} canaritos")
-    
-    # Obtener importancias de canaritos
+    # Calcular umbral
     importancias_canaritos = [feature_importance_sorted[canarito] for canarito in canaritos]
-    
-    # Calcular percentil basado en el porcentaje umbral
     percentil_umbral = np.percentile(importancias_canaritos, (1 - porcentaje_umbral) * 100)
     
-    logger.info(f"📊 Estadísticas de importancias de canaritos:")
-    logger.info(f"   Mínimo: {min(importancias_canaritos):.6f}")
-    logger.info(f"   Máximo: {max(importancias_canaritos):.6f}")
-    logger.info(f"   Mediana: {np.median(importancias_canaritos):.6f}")
-    logger.info(f"   Percentil {(1-porcentaje_umbral)*100:.1f}%: {percentil_umbral:.6f}")
+    logger.info(f"📊 Umbral de selección: {percentil_umbral:.6f}")
     
-    # Seleccionar variables que superan el umbral
-    variables_importantes = []
-    for feature, importancia in feature_importance_sorted.items():
-        # Solo considerar variables que NO son canaritos y superan el umbral
-        if not feature.startswith('canarito') and importancia > percentil_umbral:
-            variables_importantes.append(feature)
+    # Seleccionar variables importantes (excluyendo canaritos)
+    variables_importantes = {
+        feature for feature, importancia in feature_importance_sorted.items()
+        if not feature.startswith('canarito') and importancia > percentil_umbral
+    }
     
-    logger.info(f"✅ Variables seleccionadas: {len(variables_importantes)} de {len(feature_importance_sorted) - len(canaritos)}")
+    # Columnas obligatorias
+    columnas_obligatorias = {'numero_de_cliente', 'foto_mes', 'clase_ternaria'}
     
-    # Agregar columnas obligatorias (identificadores y target)
-    columnas_obligatorias = ['numero_de_cliente', 'foto_mes', 'clase_ternaria']
+    # Combinar sin duplicados
+    columnas_finales = columnas_obligatorias.union(variables_importantes)
     
-    # Verificar que las columnas obligatorias existen en el DataFrame
-    columnas_finales = []
-    for col in columnas_obligatorias:
-        if col in df.columns:
-            columnas_finales.append(col)
-        else:
-            logger.warning(f"⚠️ Columna obligatoria '{col}' no encontrada en el DataFrame")
+    # Filtrar solo las que existen en el DataFrame
+    columnas_existentes = set(df.columns)
+    columnas_finales = list(columnas_finales.intersection(columnas_existentes))
     
-    # Combinar columnas obligatorias con variables importantes
-    columnas_finales.extend(variables_importantes)
+    # Ordenar: primero obligatorias, luego alfabético
+    columnas_ordenadas = []
+    for col in ['numero_de_cliente', 'foto_mes', 'clase_ternaria']:
+        if col in columnas_finales:
+            columnas_ordenadas.append(col)
     
-    # Filtrar DataFrame
-    df_filtrado = df.select(columnas_finales)
+    # Resto de columnas ordenadas
+    otras_columnas = sorted([col for col in columnas_finales if col not in columnas_ordenadas])
+    columnas_ordenadas.extend(otras_columnas)
     
-    logger.info(f"📈 Dimensionalidad final: {df_filtrado.shape}")
+    logger.info(f"✅ {len(variables_importantes)} variables seleccionadas")
+    logger.info(f"📋 {len(columnas_ordenadas)} columnas finales")
+    logger.info(f"📈 Dimensionalidad: {df.shape} → {[df.shape[0], len(columnas_ordenadas)]}")
     
-    return df_filtrado
+    return df.select(columnas_ordenadas)
