@@ -83,7 +83,7 @@ def main():
     df = convertir_clase_ternaria_a_target(df)
     
     #05 . Ejecutar optimización (función simple)
-    study = optimizar(df, n_trials= 20,undersampling=UNDERSUMPLING) 
+    study = optimizar(df, n_trials= 50,undersampling=UNDERSUMPLING) 
     
     #06. Análisis adicional
     logger.info("=== ANÁLISIS DE RESULTADOS ===")
@@ -123,13 +123,12 @@ def main():
     # Mostrar primeras filas en consola
     print(df.head())
 
-    # Información básica
- #   filas, columnas = df.shape
- #   mensaje = f"[{datetime.datetime.now()}] Dataset cargado con {filas} filas y {columnas} columnas\n"
-
- #   # Guardar log en archivo
- #   with open("logs/logs.txt", "a", encoding="utf-8") as f:
- #       f.write(mensaje)
+#    # Información básica
+#    filas, columnas = df.shape
+#    mensaje = f"[{datetime.datetime.now()}] Dataset cargado con {filas} filas y {columnas} columnas\n"
+#    # Guardar log en archivo
+#    with open("logs/logs.txt", "a", encoding="utf-8") as f:
+#        f.write(mensaje)
 
     print(">>> Ejecución finalizada. Revisa logs/logs.txt")
 

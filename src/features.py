@@ -32,7 +32,7 @@ def feature_engineering_lag(df: pl.DataFrame, columnas: list[str], cant_lag: int
     # Aplicar los lags en una sola operación
     df_result = df.with_columns(lag_expressions)
 
-    logger.info(f"Feature engineering completado. DataFrame resultante con {len(df_result.columns)} columnas")
+    logger.info(f"LAGS completado. DataFrame resultante con {len(df_result.columns)} columnas")
     
     return df_result
 
@@ -57,4 +57,8 @@ def feature_engineering_delta_lag(df: pl.DataFrame, columnas: list[str], cant_la
             delta_expr = (current_lag - next_lag).alias(f"{attr}_delta_lag_{i}")
             delta_expressions.append(delta_expr)
 
-    return df.with_columns(delta_expressions)
+    df_result = df.with_columns(delta_expressions)
+    
+    logger.info(f"Delta LAGS completado. DataFrame resultante con {len(df_result.columns)} columnas")
+
+    return df_result
