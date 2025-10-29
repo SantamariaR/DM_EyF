@@ -65,7 +65,7 @@ def main():
    #03 Análisis e features sobre la clase ternaria(la idea es usar canaritos para podar features)
     df_canaritos = add_canaritos(df,canaritos_ratio=0.5)
    
-    modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos)
+    modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
     
     df = seleccionar_variables_por_canaritos(modelo_canaritos_features,porcentaje_umbral=0.5,df=df)
    
@@ -130,7 +130,7 @@ def main():
 #    with open("logs/logs.txt", "a", encoding="utf-8") as f:
 #        f.write(mensaje)
 
-    print(">>> Ejecución finalizada. Revisa logs/logs.txt")
+#    print(">>> Ejecución finalizada. Revisa logs/logs.txt")
 
 
 if __name__ == "__main__":

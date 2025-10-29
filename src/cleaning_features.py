@@ -78,7 +78,7 @@ def add_canaritos(df: pl.DataFrame,
 
 
 
-def train_overfit_lgbm_features(df: pl.DataFrame, objective: str = 'binary', num_class: int = None,archivo_base=None) -> lgb.Booster:
+def train_overfit_lgbm_features(df: pl.DataFrame, objective: str = 'binary', undersampling: float = 0.5,archivo_base=None) -> lgb.Booster:
     
     """
     Entrenamos un modelo lightGBM hasta el sobreajuste total para detectar features inútiles (canaritos).
@@ -116,21 +116,35 @@ def train_overfit_lgbm_features(df: pl.DataFrame, objective: str = 'binary', num
 
     
     # Períodos de evaluación
-    periodos_entrenamiento = MES_TRAIN + MES_VALIDACION
+    mitad = (len(MES_TRAIN) + 1) // 2
+    periodos_entrenamiento = MES_TRAIN[:mitad]
         
     logger.info(f"Períodos de entrenamiento: {periodos_entrenamiento}")
  
     # Data preparación, train y test
     df_train = df.filter(pl.col("foto_mes").is_in(periodos_entrenamiento))
-    
+        
+    # Separar clases
+    df_pos = df_train.filter(pl.col("clase_ternaria").is_in(["BAJA+1", "BAJA+2"]))
+    df_neg = df_train.filter(pl.col("clase_ternaria") == "CONTINUA")
+
+    # Polars no tiene sample(frac=...), pero podemos calcular cuántas filas queremos
+    n_sample = int(df_neg.height * undersampling)
+    df_neg = df_neg.sample(n=n_sample, seed=SEMILLA[0])
+
+    # Concatenar positivos y negativos muestreados
+    df_sub = pl.concat([df_pos, df_neg])
+
+    # Shuffle del dataset
+    df_sub = df_sub.sample(fraction=1.0, shuffle=True, seed=SEMILLA[0])
     # ==================================================
     # Preparar dataset para LightGBM, entrenar y testear
     # ==================================================
     # Mapeo clase_ternaria a numérico
     mapping = {'CONTINUA': 0, 'BAJA+1': 1, 'BAJA+2': 1}
     
-    X = df_train.drop(["clase_ternaria","numero_de_cliente"]).to_pandas()
-    y = df_train["clase_ternaria"].to_pandas().map(mapping)
+    X = df_sub.drop(["clase_ternaria","numero_de_cliente"]).to_pandas()
+    y = df_sub["clase_ternaria"].to_pandas().map(mapping)
 
     dtrain = lgb.Dataset(X, label=y)
     
