@@ -8,6 +8,7 @@ from typing import List
 from .config import MES_TRAIN, MES_VALIDACION, SEMILLA, BUCKET_NAME, STUDY_NAME
 from .gain_function import ganancia_evaluator_lgb
 import os
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -196,7 +197,7 @@ def train_overfit_lgbm_features(df: pl.DataFrame, objective: str = 'binary', num
     # Ruta completa de la base de datos
     archivo_csv = os.path.join(path_db, f"{archivo_base}_feature_importance.csv")
     
-    df_feature_importance = pl.DataFrame(feature_importance_sorted)
+    df_feature_importance = pd.DataFrame(feature_importance_sorted)
 
     df_feature_importance.to_csv(archivo_csv)
     
