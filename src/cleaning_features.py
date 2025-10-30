@@ -280,3 +280,56 @@ def seleccionar_variables_por_canaritos(feature_importance_sorted: dict,
     logger.info(f"📈 Dimensionalidad: {df.shape} → {[df.shape[0], len(columnas_ordenadas)]}")
     
     return df.select(columnas_ordenadas)
+
+
+
+def calcular_media_limite_compra_polars(df):
+    """
+    Calcula la media mensual conjunta de los límites de compra de Mastercard y Visa
+    usando foto_mes como variable temporal
+    """
+    return (
+        df.lazy()
+        .group_by('foto_mes')
+        .agg([
+            pl.col('Master_mlimitecompra').mean().alias('media_master'),
+            pl.col('Visa_mlimitecompra').mean().alias('media_visa'),
+            ((pl.col('Master_mlimitecompra') + pl.col('Visa_mlimitecompra')) / 2).mean().alias('media_conjunta')
+        ])
+        .collect()
+    )
+
+
+def estandarizar_variables_monetarias_polars(df):
+    """
+    Estandariza variables monetarias usando la media de límites de compra
+    REEMPLAZA las columnas originales con las versiones estandarizadas
+    """
+    # Calcular media mensual
+    media_mensual = calcular_media_limite_compra_polars(df)
+    
+    # Identificar columnas a estandarizar
+    columnas_estandarizar = [
+        col for col in df.columns 
+        if (col.startswith('m') or 
+            col.startswith('Visa_m') or 
+            col.startswith('Master_m'))
+        and col not in ['Master_mlimitecompra', 'Visa_mlimitecompra']
+    ]
+    
+    print(f"Columnas a estandarizar: {len(columnas_estandarizar)}")
+    print(f"Ejemplos: {columnas_estandarizar[:5]}...")
+    
+    # Unir las medias mensuales y aplicar estandarización REEMPLAZANDO las originales
+    df_estandarizado = (
+        df.lazy()
+        .join(media_mensual.lazy(), on='foto_mes', how='left')
+        .with_columns([
+            (pl.col(col)*10000 / pl.col('media_conjunta')).alias(col)  # Mismo nombre para reemplazar
+            for col in columnas_estandarizar
+        ])
+        .drop(['media_master', 'media_visa', 'media_conjunta'])
+        .collect()
+    )
+    
+    return df_estandarizado
