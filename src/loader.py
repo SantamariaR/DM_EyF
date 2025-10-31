@@ -148,26 +148,44 @@ def convertir_clase_ternaria_a_target(df: pl.DataFrame) -> pl.DataFrame:
     return df_result
 
 
-def cargar_features_importantes(path: str,ordenar_por_importancia=True) -> list:
-
+def cargar_features_importantes(path: str, ordenar_por_importancia: bool = True) -> dict:
     '''
     Carga un CSV desde 'path' y retorna un dict con las features importance.
+    
+    Args:
+        path: Ruta del archivo CSV
+        ordenar_por_importancia: Si ordenar las features por importancia descendente
+        
+    Returns:
+        dict: Diccionario con feature -> importance
     '''
-
     logger.info(f"Cargando dataset desde {path}")
     try:
         df = pl.read_csv(path, infer_schema_length=100)
         logger.info(f"Dataset cargado con {df.shape[0]} filas y {df.shape[1]} columnas")
-        # Ordenar por importancia si se solicita
-        if ordenar_por_importancia and 'importance' in df.columns:
-            df = df.sort('importance', descending=True)
-            feature_dict = dict(
-                    df.select([
-                    pl.col('Feature'),
-                    pl.col('Importance')
-                 ]).iter_rows()
-            )
+        
+        # Verificar que existen las columnas necesarias
+        columnas_requeridas = ['Feature', 'Importance']
+        for col in columnas_requeridas:
+            if col not in df.columns:
+                raise ValueError(f"Columna requerida '{col}' no encontrada en el dataset")
+        
+        # Ordenar por importancia si se solicita y existe la columna
+        if ordenar_por_importancia and 'Importance' in df.columns:
+            df = df.sort('Importance', descending=True)
+            logger.info("Dataset ordenado por importancia descendente")
+        
+        # Crear diccionario feature -> importance
+        feature_dict = dict(
+            df.select([
+                pl.col('Feature'),
+                pl.col('Importance')
+            ]).iter_rows()
+        )
+        
+        logger.info(f"Se cargaron {len(feature_dict)} features importantes")
         return feature_dict
+        
     except Exception as e:
         logger.error(f"Error al cargar el dataset: {e}")
         raise   
