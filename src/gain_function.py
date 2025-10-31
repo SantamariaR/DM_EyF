@@ -15,9 +15,40 @@ def ganancia_evaluator_manual(y_true, y_pred):
     y_pred_np = np.array(y_pred)
     return calcular_ganancia(y_true_np, y_pred_np)
 
-def calcular_ganancia(y_true, y_pred):
+#def calcular_ganancia(y_true, y_pred):
+#    """
+#    Función base que calcula la ganancia
+#    """
+#    # Crear DataFrame con Polars
+#    df_eval = pl.DataFrame({
+#        'y_true': y_true,
+#        'y_pred_proba': y_pred
+#    })
+#  
+#    # Ordenar por probabilidad descendente
+#    df_ordenado = df_eval.sort('y_pred_proba', descending=True)
+#  
+#    # Calcular ganancia individual para cada cliente
+#    df_ordenado = df_ordenado.with_columns([
+#        pl.when(pl.col('y_true') == 1)
+#        .then(GANANCIA_ACIERTO)
+#        .otherwise(COSTO_ESTIMULO)
+#        .alias('ganancia_individual')
+#    ])
+#  
+#    # Calcular ganancia acumulada
+#    df_ordenado = df_ordenado.with_columns([
+#        pl.col('ganancia_individual').cum_sum().alias('ganancia_acumulada')
+#    ])
+#  
+#    # Encontrar la ganancia máxima
+#    ganancia_maxima = df_ordenado.select(pl.col('ganancia_acumulada').max()).item()
+#  
+#    return ganancia_maxima
+
+def calcular_ganancia(y_true, y_pred, ventana=500):
     """
-    Función base que calcula la ganancia
+    Función que calcula el promedio de ganancias en una ventana alrededor del máximo
     """
     # Crear DataFrame con Polars
     df_eval = pl.DataFrame({
@@ -41,10 +72,24 @@ def calcular_ganancia(y_true, y_pred):
         pl.col('ganancia_individual').cum_sum().alias('ganancia_acumulada')
     ])
   
-    # Encontrar la ganancia máxima
-    ganancia_maxima = df_ordenado.select(pl.col('ganancia_acumulada').max()).item()
-  
-    return ganancia_maxima
+    # Encontrar la posición del máximo
+    indice_maximo = df_ordenado.select(
+        pl.col('ganancia_acumulada').arg_max()
+    ).item()
+    
+    # Calcular los límites de la ventana
+    inicio_ventana = max(0, indice_maximo - ventana)
+    fin_ventana = min(len(df_ordenado) - 1, indice_maximo + ventana)
+    
+    # Obtener las ganancias en la ventana
+    ganancias_ventana = df_ordenado.slice(inicio_ventana, fin_ventana - inicio_ventana + 1)\
+        .select(pl.col('ganancia_acumulada'))\
+        .to_series()
+    
+    # Calcular el promedio
+    ganancia_promedio = ganancias_ventana.mean()
+    
+    return ganancia_promedio
 
 
 def calcular_ganancia_acumulada(df, col_probabilidad="pred_proba_ensemble", col_clase="clase_ternaria"):

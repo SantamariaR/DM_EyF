@@ -6,7 +6,7 @@ import logging
 
 # Funciones personalizadas
 
-from src.loader import cargar_datos,calcular_clase_ternaria,contar_por_grupos,convertir_clase_ternaria_a_target
+from src.loader import cargar_datos,calcular_clase_ternaria,contar_por_grupos,convertir_clase_ternaria_a_target, cargar_features_importantes
 from src.features import feature_engineering_lag, feature_engineering_delta_lag
 from src.config import *
 from src.optimization import optimizar,evaluar_en_test,guardar_resultados_test
@@ -41,7 +41,7 @@ def main():
     logger.info(f"Cargado el dataset:{path_data}")
     
     # Intento arreglar datadrift
-    df = estandarizar_variables_monetarias_polars(df)
+#    df = estandarizar_variables_monetarias_polars(df)
     
     #01 Clase ternaria
     df = calcular_clase_ternaria(df)
@@ -62,9 +62,11 @@ def main():
     df = feature_engineering_delta_lag(df, columnas_lag, cant_lag=cant_lag)
     
    #03 Análisis e features sobre la clase ternaria(la idea es usar canaritos para podar features)
-    df_canaritos = add_canaritos(df,canaritos_ratio=0.5)
+    #df_canaritos = add_canaritos(df,canaritos_ratio=0.5)
    
-    modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
+    #modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
+    
+    modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp13_feature_importance.csv")
     
     df = seleccionar_variables_por_canaritos(modelo_canaritos_features,porcentaje_umbral=0.5,df=df)
    

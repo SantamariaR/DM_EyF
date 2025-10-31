@@ -145,4 +145,26 @@ def convertir_clase_ternaria_a_target(df: pl.DataFrame) -> pl.DataFrame:
     logger.info(f"  Binario - 0: {n_ceros}, 1: {n_unos}")
     logger.info(f"  Distribución: {n_unos/(n_ceros + n_unos)*100:.2f}% casos positivos")
   
-    return df_result    
+    return df_result
+
+
+def cargar_features_importantes(path: str,ordenar_por_importancia=True) -> list:
+
+    '''
+    Carga un CSV desde 'path' y retorna un dict con las features importance.
+    '''
+
+    logger.info(f"Cargando dataset desde {path}")
+    try:
+        df = pl.read_csv(path, infer_schema_length=100)
+        logger.info(f"Dataset cargado con {df.shape[0]} filas y {df.shape[1]} columnas")
+        # Ordenar por importancia si se solicita
+        if ordenar_por_importancia and 'importance' in df.columns:
+            df = df.sort('importance', descending=True)
+            # Convertir a diccionario por columnas
+        
+        feature_dict = df.to_dict(as_series=False)
+        return feature_dict
+    except Exception as e:
+        logger.error(f"Error al cargar el dataset: {e}")
+        raise   
