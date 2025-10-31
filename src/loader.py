@@ -161,9 +161,12 @@ def cargar_features_importantes(path: str,ordenar_por_importancia=True) -> list:
         # Ordenar por importancia si se solicita
         if ordenar_por_importancia and 'importance' in df.columns:
             df = df.sort('importance', descending=True)
-            # Convertir a diccionario por columnas
-        
-        feature_dict = df.to_dict(as_series=False)
+            feature_dict = dict(
+                    df.select([
+                    pl.col('Feature'),
+                    pl.col('Importance')
+                 ]).iter_rows()
+            )
         return feature_dict
     except Exception as e:
         logger.error(f"Error al cargar el dataset: {e}")
