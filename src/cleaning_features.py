@@ -78,7 +78,7 @@ def add_canaritos(df: pl.DataFrame,
 
 
 
-def train_overfit_lgbm_features(df: pl.DataFrame, objective: str = 'binary', undersampling: float = 0.5,archivo_base=None) -> lgb.Booster:
+def train_overfit_lgbm_features(df: pl.DataFrame, objective: str = 'binary', undersampling: float = 0.5,archivo_base=None) -> dict:
     
     """
     Entrenamos un modelo lightGBM hasta el sobreajuste total para detectar features inútiles (canaritos).
