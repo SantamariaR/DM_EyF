@@ -62,24 +62,17 @@ def main():
     df = feature_engineering_delta_lag(df, columnas_lag, cant_lag=cant_lag)
     
    #03 Análisis e features sobre la clase ternaria(la idea es usar canaritos para podar features)
-    #df_canaritos = add_canaritos(df,canaritos_ratio=0.5)
+    df_canaritos = add_canaritos(df,canaritos_ratio=0.5)
    
-    #modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
+    modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
     
-    modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp13_feature_importance.csv")
-    print(modelo_canaritos_features)
+    # Cargo si es necesario las features importantes según canaritos
+    #modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp13_feature_importance.csv")
+    #print(modelo_canaritos_features)
+    
     df = seleccionar_variables_por_canaritos(modelo_canaritos_features,porcentaje_umbral=0.5,df=df)
+ 
    
-#    print("=== Análisis de importancia de features con canaritos ===")
-#    print(modelo_canaritos_features)
-   
- #   print("Importancia de features del modelo con canaritos:")
- #   importancia = modelo_canaritos_features[0].feature_importance(importance_type='gain')
- #   nombres_features = modelo_canaritos_features.feature_name()
- #   feature_importance = sorted(zip(nombres_features, importancia), key=lambda x: x[1], reverse=True)
- #   for feature, imp in feature_importance:
- #       print(f"{feature}: {imp}")
-    
     #04 Convertir clase ternaria a target binario
     df = convertir_clase_ternaria_a_target(df)
     
