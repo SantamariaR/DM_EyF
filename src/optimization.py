@@ -31,45 +31,6 @@ def objetivo_ganancia(trial: optuna.trial.Trial, df: pl.DataFrame, undersampling
     Returns:
     float: ganancia total
     """
-    # Hiperparámetros a optimizar
-    params = {
-      "boosting": "gbdt", # puede ir  dart  , ni pruebe random_forest
-      "objective": "binary",
-      "metric": "None",
-      "first_metric_only": False,
-      "boost_from_average": True,
-      "feature_pre_filter": False,
-      "force_row_wise": True, # para reducir warnings
-      "verbosity": -100,
-    
-      "seed": 143287,
-      "feature_fraction_seed": 143287,
-      'bagging_seed': 143287,
-      "max_depth": -1, # -1 significa no limitar,  por ahora lo dejo fijo
-      "min_gain_to_split": 0, # min_gain_to_split >= 0
-      "min_sum_hessian_in_leaf": 0.001, #  min_sum_hessian_in_leaf >= 0.0
-      "lambda_l1": 0.0, # lambda_l1 >= 0.0
-      "lambda_l2": 0.0, # lambda_l2 >= 0.0
-      "max_bin": 31, # lo debo dejar fijo, no participa de la BO
-    
-      "bagging_fraction": 1.0, # 0.0 < bagging_fraction <= 1.0
-      "pos_bagging_fraction": 1.0, # 0.0 < pos_bagging_fraction <= 1.0
-      "neg_bagging_fraction": 1.0,# 0.0 < neg_bagging_fraction <= 1.0
-      "is_unbalance": False, #
-      "scale_pos_weight": 1.0, # scale_pos_weight > 0.0
-    
-      "drop_rate": 0.1, # 0.0 < neg_bagging_fraction <= 1.0
-      "max_drop": 50, # <=0 means no limit
-      "skip_drop": 0.5, # 0.0 <= skip_drop <= 1.0
-    
-      "extra_trees": False,
-    
-      "num_iterations": trial.suggest_int('num_iterations',2048 ,4096 ),
-      "learning_rate": trial.suggest_float('learning_rate', 0.002,0.8 ),
-      "feature_fraction": trial.suggest_float('feature_fraction',0.2 , 0.8),
-      "num_leaves": trial.suggest_int('num_leaves', 2, 82),
-      "min_data_in_leaf" : trial.suggest_int('min_data_in_leaf',1 , 2048),  
-    }
   
     # Usar target (clase_ternaria ya convertida a binaria)
   
@@ -122,6 +83,47 @@ def objetivo_ganancia(trial: optuna.trial.Trial, df: pl.DataFrame, undersampling
     # Listas para almacenar modelos y predicciones
     modelos = []
     predicciones_val = []
+    # Hiperparámetros a optimizar
+    
+      
+    params = {
+      "boosting": "gbdt", # puede ir  dart  , ni pruebe random_forest
+      "objective": "binary",
+      "metric": "None",
+      "first_metric_only": False,
+      "boost_from_average": True,
+      "feature_pre_filter": False,
+      "force_row_wise": True, # para reducir warnings
+      "verbosity": -100,
+    
+      "seed": 143287,
+      "feature_fraction_seed": 143287,
+      'bagging_seed': 143287,
+      "max_depth": -1, # -1 significa no limitar,  por ahora lo dejo fijo
+      "min_gain_to_split": 0, # min_gain_to_split >= 0
+      "min_sum_hessian_in_leaf": 0.001, #  min_sum_hessian_in_leaf >= 0.0
+      "lambda_l1": 0.0, # lambda_l1 >= 0.0
+      "lambda_l2": 0.0, # lambda_l2 >= 0.0
+      "max_bin": 31, # lo debo dejar fijo, no participa de la BO
+    
+      "bagging_fraction": 1.0, # 0.0 < bagging_fraction <= 1.0
+      "pos_bagging_fraction": 1.0, # 0.0 < pos_bagging_fraction <= 1.0
+      "neg_bagging_fraction": 1.0,# 0.0 < neg_bagging_fraction <= 1.0
+      "is_unbalance": False, #
+      "scale_pos_weight": 1.0, # scale_pos_weight > 0.0
+    
+      "drop_rate": 0.1, # 0.0 < neg_bagging_fraction <= 1.0
+      "max_drop": 50, # <=0 means no limit
+      "skip_drop": 0.5, # 0.0 <= skip_drop <= 1.0
+    
+      "extra_trees": False,
+    
+      "num_iterations": trial.suggest_int('num_iterations',2048 ,4096 ),
+      "learning_rate": trial.suggest_float('learning_rate', 0.002,0.8 ),
+      "feature_fraction": trial.suggest_float('feature_fraction',0.2 , 0.8),
+      "num_leaves": trial.suggest_int('num_leaves', 2, 82),
+      "min_data_in_leaf" : trial.suggest_int('min_data_in_leaf',1 , 2048),  
+    }
     
     # Entrenar 5 modelos con diferentes semillas
     for i, semilla in enumerate(SEMILLA):
