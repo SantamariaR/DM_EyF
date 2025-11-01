@@ -333,3 +333,60 @@ def estandarizar_variables_monetarias_polars(df):
     )
     
     return df_estandarizado
+
+
+def convertir_ceros_a_nan_por_mes(df, columna_mes='foto_mes', umbral_ceros=1):
+    """
+    Convierte ceros a NaN analizando POR CADA MES por separado
+    """
+    # Obtener todos los meses únicos
+    meses_unicos = df.select(pl.col(columna_mes)).unique().to_series().sort()
+    
+    print(f"Meses a procesar: {meses_unicos.to_list()}")
+    
+    # Lista para almacenar los DataFrames procesados
+    dfs_procesados = []
+    
+    for mes in meses_unicos:
+        print(f"\n--- Analizando mes {mes} ---")
+        
+        # Filtrar datos del mes actual
+        df_mes = df.filter(pl.col(columna_mes) == mes)
+        
+        # Identificar columnas numéricas (excluyendo la columna de mes)
+        columnas_numericas = [col for col in df_mes.columns 
+                            if col != columna_mes and 
+                            df_mes[col].dtype in [pl.Int64, pl.Float64]]
+        
+        # Calcular porcentaje de ceros por columna PARA ESTE MES
+        stats_ceros_mes = df_mes.select([
+            ((pl.col(col) == 0).mean() * 100).alias(col)
+            for col in columnas_numericas
+        ])
+        
+        # Columnas a convertir para este mes (las que superan el umbral)
+        columnas_a_convertir = [
+            col for col in columnas_numericas 
+            if stats_ceros_mes[col][0] > (umbral_ceros * 100)
+        ]
+        
+        print(f"Columnas con >{umbral_ceros*100}% ceros: {columnas_a_convertir}")
+        
+        # Aplicar transformación solo a las columnas problemáticas de este mes
+        if columnas_a_convertir:
+            df_mes_procesado = df_mes.with_columns([
+                pl.when(pl.col(col) == 0)
+                .then(None)
+                .otherwise(pl.col(col))
+                .alias(col)
+                for col in columnas_a_convertir
+            ])
+        else:
+            df_mes_procesado = df_mes
+        
+        dfs_procesados.append(df_mes_procesado)
+    
+    # Concatenar todos los meses procesados
+    df_final = pl.concat(dfs_procesados)
+    
+    return df_final

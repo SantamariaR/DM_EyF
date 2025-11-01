@@ -84,7 +84,8 @@ def objetivo_ganancia(trial: optuna.trial.Trial, df: pl.DataFrame, undersampling
     modelos = []
     predicciones_val = []
     # Hiperparámetros a optimizar
-    
+
+    cant_registros = X.shape[0]    
       
     params = {
       "boosting": "gbdt", # puede ir  dart  , ni pruebe random_forest
@@ -121,8 +122,8 @@ def objetivo_ganancia(trial: optuna.trial.Trial, df: pl.DataFrame, undersampling
       "num_iterations": trial.suggest_int('num_iterations',2048 ,4096 ),
       "learning_rate": trial.suggest_float('learning_rate', 0.002,0.8 ),
       "feature_fraction": trial.suggest_float('feature_fraction',0.2 , 0.8),
-      "num_leaves": trial.suggest_int('num_leaves', 2, 82),
-      "min_data_in_leaf" : trial.suggest_int('min_data_in_leaf',1 , 2048),  
+      "min_data_in_leaf" : trial.suggest_int('min_data_in_leaf',1 ,2048),
+      "num_leaves": trial.suggest_int('num_leaves', 2, 82)  
     }
     
     # Entrenar 5 modelos con diferentes semillas

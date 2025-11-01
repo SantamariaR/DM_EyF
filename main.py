@@ -13,7 +13,7 @@ from src.optimization import optimizar,evaluar_en_test,guardar_resultados_test
 from src.best_params import cargar_mejores_hiperparametros
 from src.final_training import evaluar_en_predict
 from src.output_manager import guardar_resultados_predict
-from src.cleaning_features import train_overfit_lgbm_features, add_canaritos, seleccionar_variables_por_canaritos,estandarizar_variables_monetarias_polars
+from src.cleaning_features import train_overfit_lgbm_features, add_canaritos, seleccionar_variables_por_canaritos,estandarizar_variables_monetarias_polars,convertir_ceros_a_nan_por_mes
 
 
 # Nombre del log fijo en lugar de uno con timestamp
@@ -42,6 +42,7 @@ def main():
     
     # Intento arreglar datadrift
 #    df = estandarizar_variables_monetarias_polars(df)
+    df = convertir_ceros_a_nan_por_mes(df, columna_mes='foto_mes', umbral_ceros=0.99)
     
     #01 Clase ternaria
     df = calcular_clase_ternaria(df)
@@ -70,7 +71,7 @@ def main():
     modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp13_feature_importance.csv")
     #print(modelo_canaritos_features)
     
-    df = seleccionar_variables_por_canaritos(modelo_canaritos_features,porcentaje_umbral=0.60,df=df)
+    df = seleccionar_variables_por_canaritos(modelo_canaritos_features,porcentaje_umbral=0.5,df=df)
  
    
     #04 Convertir clase ternaria a target binario
