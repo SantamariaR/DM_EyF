@@ -747,26 +747,23 @@ def optimizar(df: pd.DataFrame, n_trials: int, study_name: str = None, undersamp
     else:
         logger.info(f"✅ Ya se completaron {n_trials} trials")
         
-    # Obtener mejores parámetros transformados
+    # Obtener y mostrar parámetros transformados
     best_trial = study.best_trial
     
-    # Recalcular los parámetros transformados a partir de los _exp
-    best_num_iterations = int(round(2 ** best_trial.params['num_iterations_exp']))
-    best_learning_rate = 2 ** best_trial.params['learning_rate_exp']
-    best_feature_fraction = best_trial.params['feature_fraction']
-    best_min_data_in_leaf = int(round(2 ** best_trial.params['min_data_exp']))
-    best_num_leaves = int(round(2 ** best_trial.params['num_leaves_exp']))
-    
     best_params_transformed = {
-        'num_iterations': best_num_iterations,
-        'learning_rate': best_learning_rate,
-        'feature_fraction': best_feature_fraction,
-        'min_data_in_leaf': round(best_min_data_in_leaf / UNDERSUMPLING),
-        'num_leaves': best_num_leaves
-    }    
-
-    study.best_params.update(best_params_transformed)
-    logger.info(f"Parámetros normalizados: {study.best_params}")
-    logger.info(f"Undersampling aplicado: {UNDERSUMPLING}")
+        'num_iterations': int(round(2 ** best_trial.params['num_iterations_exp'])),
+        'learning_rate': 2 ** best_trial.params['learning_rate_exp'],
+        'feature_fraction': best_trial.params['feature_fraction'],
+        'min_data_in_leaf': int(round(2 ** best_trial.params['min_data_exp'])),
+        'num_leaves': int(round(2 ** best_trial.params['num_leaves_exp']))
+    }
+    
+    # Agregar como atributo custom al estudio
+    study.best_params_transformed = best_params_transformed
+    
+    logger.info(f"🏆 Mejor ganancia: {study.best_value:,.0f}")
+    logger.info(f"📊 Parámetros EXP: {study.best_params}")
+    logger.info(f"🎯 Parámetros TRANSFORMADOS: {best_params_transformed}")
+    
     return study
 
