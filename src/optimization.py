@@ -1,5 +1,6 @@
 import optuna
 import lightgbm as lgb
+import math
 import polars as pl
 import pandas as pd
 import numpy as np
@@ -32,12 +33,6 @@ def objetivo_ganancia(trial: optuna.trial.Trial, df: pl.DataFrame, undersampling
     float: ganancia total
     """
   
-    # Usar target (clase_ternaria ya convertida a binaria)
-  
-    # Features: usar todas las columnas excepto target
-  
-    # Entrenar modelo con función de ganancia personalizada
-    
     periodos_entrenamiento = MES_TRAIN if isinstance(MES_TRAIN, list) else [MES_TRAIN]
     periodo_validacion = MES_VALIDACION
         
@@ -49,7 +44,6 @@ def objetivo_ganancia(trial: optuna.trial.Trial, df: pl.DataFrame, undersampling
     # Separar clases
     df_pos = df_train.filter(pl.col("clase_01") == 1)
     df_neg = df_train.filter(pl.col("clase_01") == 0)
-
 
     # Polars no tiene sample(frac=...), pero podemos calcular cuántas filas queremos
     n_sample = int(df_neg.height * undersampling)
@@ -64,7 +58,6 @@ def objetivo_ganancia(trial: optuna.trial.Trial, df: pl.DataFrame, undersampling
     # Preparar datos de validación
     df_val = df.filter(pl.col("foto_mes").is_in(periodo_validacion))
 
-
     # ===============================
     # Preparar dataset para LightGBM
     # ===============================
@@ -78,53 +71,79 @@ def objetivo_ganancia(trial: optuna.trial.Trial, df: pl.DataFrame, undersampling
     
     val_data = lgb.Dataset(X_val, label=y_val)
     
-    logger.info(f"Train dataset listo: {X.shape}, Pos: {y.sum()}, Neg: {len(y)-y.sum()} ")
+    logger.info(f"Train dataset listo: {X.shape}, Pos: {y.sum()}, Neg: {len(y)-y.sum()}")
    
     # Listas para almacenar modelos y predicciones
     modelos = []
     predicciones_val = []
-    # Hiperparámetros a optimizar
-
-    cant_registros = X.shape[0]    
-      
+    
+    # HIPERPARÁMETROS CON OPTIMIZACIÓN BAYESIANA MEJORADA
+    cant_registros = X.shape[0]
+    
+    # Parámetros con transformaciones similares al código R original
+    num_iterations_exp = trial.suggest_float('num_iterations_exp', 0.0, 11.1)
+    num_iterations = int(round(2 ** num_iterations_exp))
+    
+    learning_rate_exp = trial.suggest_float('learning_rate_exp', -8.0, -1.0)
+    learning_rate = 2 ** learning_rate_exp
+    
+    feature_fraction = trial.suggest_float('feature_fraction', 0.05, 1.0)
+    
+    # min_data_in_leaf con límite superior dinámico
+    max_min_data_exp = math.log2(cant_registros / 2)
+    min_data_exp = trial.suggest_float('min_data_exp', 0.0, max_min_data_exp)
+    min_data_in_leaf = int(round(2 ** min_data_exp))
+    
+    num_leaves_exp = trial.suggest_float('num_leaves_exp', 1.0, 10.0)
+    num_leaves = int(round(2 ** num_leaves_exp))
+    
+    # Restricción forbidden del código R original
+    if min_data_in_leaf * num_leaves > cant_registros:
+        logger.info(f"Restricción violada: {min_data_in_leaf} * {num_leaves} > {cant_registros}")
+        return -1000000  # Penalización fuerte
+    
     params = {
-      "boosting": "gbdt", # puede ir  dart  , ni pruebe random_forest
-      "objective": "binary",
-      "metric": "None",
-      "first_metric_only": False,
-      "boost_from_average": True,
-      "feature_pre_filter": False,
-      "force_row_wise": True, # para reducir warnings
-      "verbosity": -100,
-    
-      "seed": 143287,
-      "feature_fraction_seed": 143287,
-      'bagging_seed': 143287,
-      "max_depth": -1, # -1 significa no limitar,  por ahora lo dejo fijo
-      "min_gain_to_split": 0, # min_gain_to_split >= 0
-      "min_sum_hessian_in_leaf": 0.001, #  min_sum_hessian_in_leaf >= 0.0
-      "lambda_l1": 0.0, # lambda_l1 >= 0.0
-      "lambda_l2": 0.0, # lambda_l2 >= 0.0
-      "max_bin": 31, # lo debo dejar fijo, no participa de la BO
-    
-      "bagging_fraction": 1.0, # 0.0 < bagging_fraction <= 1.0
-      "pos_bagging_fraction": 1.0, # 0.0 < pos_bagging_fraction <= 1.0
-      "neg_bagging_fraction": 1.0,# 0.0 < neg_bagging_fraction <= 1.0
-      "is_unbalance": False, #
-      "scale_pos_weight": 1.0, # scale_pos_weight > 0.0
-    
-      "drop_rate": 0.1, # 0.0 < neg_bagging_fraction <= 1.0
-      "max_drop": 50, # <=0 means no limit
-      "skip_drop": 0.5, # 0.0 <= skip_drop <= 1.0
-    
-      "extra_trees": False,
-    
-      "num_iterations": trial.suggest_int('num_iterations',2048 ,4096 ),
-      "learning_rate": trial.suggest_float('learning_rate', 0.002,0.8 ),
-      "feature_fraction": trial.suggest_float('feature_fraction',0.2 , 0.8),
-      "min_data_in_leaf" : trial.suggest_int('min_data_in_leaf',1 ,2048),
-      "num_leaves": trial.suggest_int('num_leaves', 2, 82)  
+        "boosting": "gbdt",
+        "objective": "binary",
+        "metric": "None",
+        "first_metric_only": False,
+        "boost_from_average": True,
+        "feature_pre_filter": False,
+        "force_row_wise": True,
+        "verbosity": -100,
+        
+        "seed": 143287,
+        "feature_fraction_seed": 143287,
+        'bagging_seed': 143287,
+        "max_depth": -1,
+        "min_gain_to_split": 0,
+        "min_sum_hessian_in_leaf": 0.001,
+        "lambda_l1": 0.0,
+        "lambda_l2": 0.0,
+        "max_bin": 31,
+        
+        "bagging_fraction": 1.0,
+        "pos_bagging_fraction": 1.0,
+        "neg_bagging_fraction": 1.0,
+        "is_unbalance": False,
+        "scale_pos_weight": 1.0,
+        
+        "drop_rate": 0.1,
+        "max_drop": 50,
+        "skip_drop": 0.5,
+        
+        "extra_trees": False,
+        
+        # PARÁMETROS OPTIMIZADOS
+        "num_iterations": num_iterations,
+        "learning_rate": learning_rate,
+        "feature_fraction": feature_fraction,
+        "min_data_in_leaf": min_data_in_leaf,
+        "num_leaves": num_leaves
     }
+    
+    logger.info(f"Parámetros del trial: iteraciones={num_iterations}, lr={learning_rate:.6f}, "
+                f"feature_frac={feature_fraction:.3f}, min_data={min_data_in_leaf}, leaves={num_leaves}")
     
     # Entrenar 5 modelos con diferentes semillas
     for i, semilla in enumerate(SEMILLA):
@@ -151,17 +170,13 @@ def objetivo_ganancia(trial: optuna.trial.Trial, df: pl.DataFrame, undersampling
         y_pred_proba_single = abs(model.predict(X_val))
         predicciones_val.append(y_pred_proba_single)
 
-        
         # Calcular ganancia individual
-        ganancia_individual = ganancia_evaluator_manual(y_val,y_pred_proba_single)  
+        ganancia_individual = ganancia_evaluator_manual(y_val, y_pred_proba_single)  
         logger.info(f"Ganancia modelo {i+1}: {ganancia_individual}")
 
-    
-    
     # Promediar las predicciones de validación
     y_pred_proba_ensemble = np.mean(predicciones_val, axis=0)
     
-   
     # Calcular ganancia del ensemble
     ganancia_ensemble = ganancia_evaluator_manual(y_val, y_pred_proba_ensemble)
     logger.info(f"\n=== GANANCIA ENSEMBLE: {ganancia_ensemble} ===")    
@@ -172,6 +187,168 @@ def objetivo_ganancia(trial: optuna.trial.Trial, df: pl.DataFrame, undersampling
     logger.info(f"Trial {trial.number}: Ganancia = {ganancia_ensemble:,.0f}")
   
     return ganancia_ensemble
+
+
+
+#def objetivo_ganancia(trial: optuna.trial.Trial, df: pl.DataFrame, undersampling: float = 1) -> float:
+#    """
+#    Parameters:
+#    trial: trial de optuna
+#    df: dataframe con datos
+#  
+#    Description:
+#    Función objetivo que maximiza ganancia en mes de validación.
+#    Utiliza configuración YAML para períodos y semilla.
+#    Define parametros para el modelo LightGBM
+#    Preparar dataset para entrenamiento y validación
+#    Entrena modelo con función de ganancia personalizada
+#    Predecir y calcular ganancia
+#    Guardar cada iteración en JSON
+#  
+#    Returns:
+#    float: ganancia total
+#    """
+#  
+#    # Usar target (clase_ternaria ya convertida a binaria)
+#  
+#    # Features: usar todas las columnas excepto target
+#  
+#    # Entrenar modelo con función de ganancia personalizada
+#    
+#    periodos_entrenamiento = MES_TRAIN if isinstance(MES_TRAIN, list) else [MES_TRAIN]
+#    periodo_validacion = MES_VALIDACION
+#        
+#    logger.info(f"Períodos de entrenamiento: {periodos_entrenamiento}")
+#    logger.info(f"Período de validación: {periodo_validacion}")
+#        
+#    df_train = df.filter(pl.col("foto_mes").is_in(periodos_entrenamiento))
+#
+#    # Separar clases
+#    df_pos = df_train.filter(pl.col("clase_01") == 1)
+#    df_neg = df_train.filter(pl.col("clase_01") == 0)
+#
+#
+#    # Polars no tiene sample(frac=...), pero podemos calcular cuántas filas queremos
+#    n_sample = int(df_neg.height * undersampling)
+#    df_neg = df_neg.sample(n=n_sample, seed=SEMILLA[0] + trial.number)
+#
+#    # Concatenar positivos y negativos muestreados
+#    df_sub = pl.concat([df_pos, df_neg])
+#
+#    # Shuffle del dataset
+#    df_sub = df_sub.sample(fraction=1.0, shuffle=True, seed=SEMILLA[0])
+#    
+#    # Preparar datos de validación
+#    df_val = df.filter(pl.col("foto_mes").is_in(periodo_validacion))
+#
+#
+#    # ===============================
+#    # Preparar dataset para LightGBM
+#    # ===============================
+#    X = df_sub.drop(["clase_ternaria", "clase_01"]).to_pandas()
+#    y = df_sub["clase_01"].to_pandas()
+#
+#    dtrain = lgb.Dataset(X, label=y)
+#    
+#    X_val = df_val.drop(["clase_ternaria", "clase_01"]).to_pandas()
+#    y_val = df_val["clase_01"].to_pandas()
+#    
+#    val_data = lgb.Dataset(X_val, label=y_val)
+#    
+#    logger.info(f"Train dataset listo: {X.shape}, Pos: {y.sum()}, Neg: {len(y)-y.sum()} ")
+#   
+#    # Listas para almacenar modelos y predicciones
+#    modelos = []
+#    predicciones_val = []
+#    # Hiperparámetros a optimizar
+#
+#    cant_registros = X.shape[0]    
+#      
+#    params = {
+#      "boosting": "gbdt", # puede ir  dart  , ni pruebe random_forest
+#      "objective": "binary",
+#      "metric": "None",
+#      "first_metric_only": False,
+#      "boost_from_average": True,
+#      "feature_pre_filter": False,
+#      "force_row_wise": True, # para reducir warnings
+#      "verbosity": -100,
+#    
+#      "seed": 143287,
+#      "feature_fraction_seed": 143287,
+#      'bagging_seed': 143287,
+#      "max_depth": -1, # -1 significa no limitar,  por ahora lo dejo fijo
+#      "min_gain_to_split": 0, # min_gain_to_split >= 0
+#      "min_sum_hessian_in_leaf": 0.001, #  min_sum_hessian_in_leaf >= 0.0
+#      "lambda_l1": 0.0, # lambda_l1 >= 0.0
+#      "lambda_l2": 0.0, # lambda_l2 >= 0.0
+#      "max_bin": 31, # lo debo dejar fijo, no participa de la BO
+#    
+#      "bagging_fraction": 1.0, # 0.0 < bagging_fraction <= 1.0
+#      "pos_bagging_fraction": 1.0, # 0.0 < pos_bagging_fraction <= 1.0
+#      "neg_bagging_fraction": 1.0,# 0.0 < neg_bagging_fraction <= 1.0
+#      "is_unbalance": False, #
+#      "scale_pos_weight": 1.0, # scale_pos_weight > 0.0
+#    
+#      "drop_rate": 0.1, # 0.0 < neg_bagging_fraction <= 1.0
+#      "max_drop": 50, # <=0 means no limit
+#      "skip_drop": 0.5, # 0.0 <= skip_drop <= 1.0
+#    
+#      "extra_trees": False,
+#    
+#      "num_iterations": trial.suggest_int('num_iterations',2048 ,4096 ),
+#      "learning_rate": trial.suggest_float('learning_rate', 0.002,0.8 ),
+#      "feature_fraction": trial.suggest_float('feature_fraction',0.2 , 0.8),
+#      "min_data_in_leaf" : trial.suggest_int('min_data_in_leaf',1 ,2048),
+#      "num_leaves": trial.suggest_int('num_leaves', 2, 82)  
+#    }
+#    
+#    # Entrenar 5 modelos con diferentes semillas
+#    for i, semilla in enumerate(SEMILLA):
+#        logger.info(f"\n--- Entrenando modelo {i+1} con semilla {semilla} ---")
+#        
+#        # Actualizar la semilla en los parámetros
+#        params['seed'] = semilla
+#        params['feature_fraction_seed'] = semilla
+#        params['bagging_seed'] = semilla
+#        
+#        # Entrenar modelo
+#        model = lgb.train(
+#            params,
+#            dtrain,
+#            valid_sets=[val_data],
+#            feval=ganancia_evaluator_lgb,
+#            callbacks=[lgb.early_stopping(50), lgb.log_evaluation(0)]
+#        )
+#        
+#        # Guardar modelo
+#        modelos.append(model)
+#        
+#        # Predecir con este modelo
+#        y_pred_proba_single = abs(model.predict(X_val))
+#        predicciones_val.append(y_pred_proba_single)
+#
+#        
+#        # Calcular ganancia individual
+#        ganancia_individual = ganancia_evaluator_manual(y_val,y_pred_proba_single)  
+#        logger.info(f"Ganancia modelo {i+1}: {ganancia_individual}")
+#
+#    
+#    
+#    # Promediar las predicciones de validación
+#    y_pred_proba_ensemble = np.mean(predicciones_val, axis=0)
+#    
+#   
+#    # Calcular ganancia del ensemble
+#    ganancia_ensemble = ganancia_evaluator_manual(y_val, y_pred_proba_ensemble)
+#    logger.info(f"\n=== GANANCIA ENSEMBLE: {ganancia_ensemble} ===")    
+#
+#    # Guardar cada iteración en JSON
+#    guardar_iteracion(trial, ganancia_ensemble)
+#  
+#    logger.info(f"Trial {trial.number}: Ganancia = {ganancia_ensemble:,.0f}")
+#  
+#    return ganancia_ensemble
 
 
 #def optimizar(df: pl.DataFrame, n_trials: int = 1) -> optuna.Study:
