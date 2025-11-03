@@ -16,6 +16,7 @@ try:
         DATA_PATH = _cfg.get("DATA_PATH", "../content/datasets/competencia_01.csv.gz")
         DATA_PATH_LOCAL = _cfg.get("DATA_PATH_LOCAL", "../data/competencia_01_crudo.csv")
         SEMILLA = _cfg.get("SEMILLA", [42])
+        SEMILLERO = _cfg.get("SEMILLERO", [101, 202, 303, 404, 505])
         BUCKET_NAME = _cfgGeneral.get("BUCKET_NAME", "content/buckets/b1/exp")
         MES_TRAIN = _cfg.get("MES_TRAIN", 202102)
         MES_VALIDACION = _cfg.get("MES_VALIDACION", 202103)

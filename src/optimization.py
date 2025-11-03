@@ -550,7 +550,7 @@ def evaluar_en_test(df, mejores_params) -> dict:
     modelos = []
     predicciones_test = []
     # Entrenar 5 modelos con diferentes semillas
-    for i, semilla in enumerate(SEMILLA):
+    for i, semilla in enumerate(SEMILLA+SEMILLERO):
         logger.info(f"\n--- Entrenando modelo {i+1} con semilla {semilla} ---")
         
         # Actualizar la semilla en los parámetros
@@ -718,7 +718,8 @@ def optimizar(df: pd.DataFrame, n_trials: int, study_name: str = None, undersamp
         optuna.Study: Estudio de Optuna con resultados
     """
 
-    study_name = STUDY_NAME
+    #study_name = STUDY_NAME
+    study_name ="exp20"
 
     logger.info(f"Iniciando optimización con {n_trials} trials")
     logger.info(f"Configuración: TRAIN={MES_TRAIN}, VALID={MES_VALIDACION}, SEMILLA={SEMILLA}")
