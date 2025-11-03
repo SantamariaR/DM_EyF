@@ -645,8 +645,8 @@ def crear_o_cargar_estudio(study_name: str = None, semilla: int = None) -> optun
     Returns:
         optuna.Study: Estudio de Optuna (nuevo o cargado)
     """
-    study_name = STUDY_NAME
-  
+    #study_name = STUDY_NAME
+    study_name = "exp20"
     if semilla is None:
         semilla = SEMILLA[0] if isinstance(SEMILLA, list) else SEMILLA
   
