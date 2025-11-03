@@ -43,7 +43,12 @@ def main():
     # Intento arreglar datadrift
 #    df = estandarizar_variables_monetarias_polars(df)
     df = convertir_ceros_a_nan(df, columna_mes='foto_mes', umbral_ceros=0.99)
-    
+#   Tiro algunas columnas que cambien tendencia
+    columnas_a_eliminar = ["internet","cprestamos_personales","mprestamos_personales","mpayroll2","mpagodeservicios","Master_msaldototal","Master_msaldopesos","Visa_Fvencimiento","Visa_msaldototal","Visa_msaldopesos","Visa_madelantopesos"]
+    columnas_base = [col for col in df.columns if col not in columnas_a_eliminar]
+    df = df.select(columnas_base)
+
+   
     #01 Clase ternaria
     df = calcular_clase_ternaria(df)
     logger.info(f"Grupos de clase ternaria por mes:{contar_por_grupos(df)}")
@@ -63,12 +68,12 @@ def main():
     df = feature_engineering_delta_lag(df, columnas_lag, cant_lag=cant_lag)
     
    #03 Análisis e features sobre la clase ternaria(la idea es usar canaritos para podar features)
-    #df_canaritos = add_canaritos(df,canaritos_ratio=0.5)
+    df_canaritos = add_canaritos(df,canaritos_ratio=0.5)
    
-    #modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
+    modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
     
     # Cargo si es necesario las features importantes según canaritos
-    modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp13_feature_importance.csv")
+    #modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp13_feature_importance.csv")
     #print(modelo_canaritos_features)
     
     df = seleccionar_variables_por_canaritos(modelo_canaritos_features,porcentaje_umbral=0.5,df=df)
