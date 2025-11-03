@@ -99,7 +99,13 @@ def main():
     #07 Test en mes desconocido
     logger.info("=== EVALUACIÓN EN CONJUNTO DE TEST ===")
     # Cargar mejores hiperparámetros
-    mejores_params = cargar_mejores_hiperparametros()
+    #mejores_params = cargar_mejores_hiperparametros()
+    # Acceder a los parámetros transformados
+    mejores_params = study.best_params_transformed
+    mejor_ganancia = study.best_value
+    
+    print(f"Mejor ganancia: {mejor_ganancia:,.0f}")
+    print(f"Parámetros para el modelo: {mejores_params}")
   
     # Evaluar en test
     df_test = evaluar_en_test(df, mejores_params)
