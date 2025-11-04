@@ -7,7 +7,7 @@ import logging
 # Funciones personalizadas
 
 from src.loader import cargar_datos,calcular_clase_ternaria,contar_por_grupos,convertir_clase_ternaria_a_target, cargar_features_importantes
-from src.features import feature_engineering_lag, feature_engineering_delta_lag
+from src.features import feature_engineering_lag, feature_engineering_delta_lag,AgregaVarRandomForest
 from src.config import *
 from src.optimization import optimizar,evaluar_en_test,guardar_resultados_test
 from src.best_params import cargar_mejores_hiperparametros
@@ -30,7 +30,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def main():
-    print(">>> Inicio de ejecución")
+    logger.info(f">>> Comienzo del Estudio: {STUDY_NAME} <<<")
 
     # Asegurar que exista la carpeta de logs
     os.makedirs("logs", exist_ok=True)
@@ -44,7 +44,7 @@ def main():
 #    df = estandarizar_variables_monetarias_polars(df)
     df = convertir_ceros_a_nan(df, columna_mes='foto_mes', umbral_ceros=0.99)
 #   Tiro algunas columnas que cambien tendencia
-    columnas_a_eliminar = ["cprestamos_personales","mprestamos_personales"]
+    columnas_a_eliminar = ["internet","cprestamos_personales","mprestamos_personales","mpayroll2","mpagodeservicios","Master_msaldototal","Master_msaldopesos","Visa_Fvencimiento","Visa_msaldototal","Visa_msaldopesos","Visa_madelantopesos"]
     columnas_base = [col for col in df.columns if col not in columnas_a_eliminar]
     df = df.select(columnas_base)
 
@@ -55,17 +55,21 @@ def main():
     
         
     #02 Feature Engineering - Lags
-    # Ordeno y después genero lags
+    # Ordeno
     df = df.sort(["numero_de_cliente", "foto_mes"])
     # Columnas a excluir
     excluir = ["numero_de_cliente", "foto_mes", "clase_ternaria"]
+    
     # Obtener columnas para aplicar lags
     columnas_lag = [col for col in df.columns if col not in excluir]
     
-#    columnas_lag = ["ctrx_quarter"]
     cant_lag = 2
     df = feature_engineering_lag(df, columnas_lag, cant_lag=cant_lag)
     df = feature_engineering_delta_lag(df, columnas_lag, cant_lag=cant_lag)
+    
+    # Hacemos un RF para agregar variables
+    #df = AgregaVarRandomForest(df)
+    
     
    #03 Análisis e features sobre la clase ternaria(la idea es usar canaritos para podar features)
     #df_canaritos = add_canaritos(df,canaritos_ratio=0.5)
@@ -73,7 +77,7 @@ def main():
     #modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
     
     # Cargo si es necesario las features importantes según canaritos
-    modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp22_feature_importance.csv")
+    modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp19_feature_importance.csv")
     #print(modelo_canaritos_features)
     
     df = seleccionar_variables_por_canaritos(modelo_canaritos_features,porcentaje_umbral=0.5,df=df)
