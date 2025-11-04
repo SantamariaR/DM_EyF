@@ -501,17 +501,17 @@ def evaluar_en_test(df, mejores_params) -> dict:
     logger.info(f"Período de test: {MES_TEST}")
   
     # Períodos de evaliación
-    periodos_entrenamiento = MES_TRAIN
-    periodo_validacion = MES_VALIDACION
+    periodos_entrenamiento = MES_TRAIN + MES_VALIDACION
+    #periodo_validacion = MES_VALIDACION
     periodo_test = MES_TEST
         
     logger.info(f"Períodos de entrenamiento: {periodos_entrenamiento}")
-    logger.info(f"Período de Validación: {periodo_validacion}")
+    #logger.info(f"Período de Validación: {periodo_validacion}")
     logger.info(f"Período de Testeo: {periodo_test}")
  
     # Data preparación, train y test
     df_train = df.filter(pl.col("foto_mes").is_in(periodos_entrenamiento))
-    df_val = df.filter(pl.col("foto_mes").is_in(periodo_validacion))
+    #df_val = df.filter(pl.col("foto_mes").is_in(periodo_validacion))
     df_test = df.filter(pl.col("foto_mes").is_in(periodo_test))
     
     # Separar clases(por si queremos undersampling )
@@ -533,10 +533,10 @@ def evaluar_en_test(df, mejores_params) -> dict:
 
     dtrain = lgb.Dataset(X, label=y)
     
-    X_val = df_val.drop(["clase_ternaria", "clase_01"]).to_pandas()
-    y_val = df_val["clase_01"].to_pandas()
+    #X_val = df_val.drop(["clase_ternaria", "clase_01"]).to_pandas()
+    #y_val = df_val["clase_01"].to_pandas()
     
-    val_data = lgb.Dataset(X_val, label=y_val) 
+    #val_data = lgb.Dataset(X_val, label=y_val) 
     
     # Para test sólo tomo como positivos BAJA+2
     X_test = df_test.drop(["clase_ternaria", "clase_01"]).to_pandas()
@@ -559,16 +559,22 @@ def evaluar_en_test(df, mejores_params) -> dict:
         params['bagging_seed'] = semilla
         
         # Entrenar modelo
+#        model = lgb.train(
+#            params,
+#            dtrain,
+#            feval=ganancia_evaluator_lgb,
+#            valid_sets=[val_data],
+#            callbacks=[lgb.early_stopping(50), lgb.log_evaluation(0),
+#            lgb.log_evaluation(period=100)]
+#            
+#        )
         model = lgb.train(
             params,
             dtrain,
             feval=ganancia_evaluator_lgb,
-            valid_sets=[val_data],
-            callbacks=[lgb.early_stopping(50), lgb.log_evaluation(0),
-            lgb.log_evaluation(period=100)]
-            
-        )
-        
+            num_boost_round=100,  # Especifica el número de iteraciones directamente
+            callbacks=[lgb.log_evaluation(period=100)]
+        )        
         # Guardar modelo
         modelos.append(model)
         
