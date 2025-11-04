@@ -549,7 +549,7 @@ def evaluar_en_test(df, mejores_params) -> dict:
     # Listas para almacenar modelos y predicciones
     modelos = []
     predicciones_test = []
-    # Entrenar 5 modelos con diferentes semillas
+    # Entrenar 30 modelos con diferentes semillas
     for i, semilla in enumerate(SEMILLA+SEMILLERO):
         logger.info(f"\n--- Entrenando modelo {i+1} con semilla {semilla} ---")
         
@@ -645,8 +645,8 @@ def crear_o_cargar_estudio(study_name: str = None, semilla: int = None) -> optun
     Returns:
         optuna.Study: Estudio de Optuna (nuevo o cargado)
     """
-    #study_name = STUDY_NAME
-    study_name = "exp20"
+    study_name = STUDY_NAME
+    
     if semilla is None:
         semilla = SEMILLA[0] if isinstance(SEMILLA, list) else SEMILLA
   
@@ -718,8 +718,8 @@ def optimizar(df: pd.DataFrame, n_trials: int, study_name: str = None, undersamp
         optuna.Study: Estudio de Optuna con resultados
     """
 
-    #study_name = STUDY_NAME
-    study_name ="exp20"
+    study_name = STUDY_NAME
+    
 
     logger.info(f"Iniciando optimización con {n_trials} trials")
     logger.info(f"Configuración: TRAIN={MES_TRAIN}, VALID={MES_VALIDACION}, SEMILLA={SEMILLA}")
