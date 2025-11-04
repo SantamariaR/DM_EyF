@@ -116,8 +116,9 @@ def train_overfit_lgbm_features(df: pl.DataFrame, objective: str = 'binary', und
 
     
     # Períodos de evaluación
-    mitad = (len(MES_TRAIN) + 1) // 2
-    periodos_entrenamiento = MES_TRAIN[:mitad]
+    #mitad = (len(MES_TRAIN) + 1) // 2
+    #periodos_entrenamiento = MES_TRAIN[:mitad]
+    periodos_entrenamiento = [202101, 202102, 202103]
         
     logger.info(f"Períodos de entrenamiento: {periodos_entrenamiento}")
  
