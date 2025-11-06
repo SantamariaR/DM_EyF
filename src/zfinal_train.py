@@ -117,7 +117,7 @@ def evaluamos_en_predict_zlightgbm(df,n_canarios:int) -> dict:
         modelos.append(model)
         
         # Predecir con este modelo
-        y_pred_proba_single = abs(model.predict_proba(X_test)[:, 1])
+        y_pred_proba_single = abs(model.predict(X_test, raw_score=False))
         logger.info(f"Predicciones modelo {i+1} (primeros 10): {y_pred_proba_single[:10]}")
         predicciones_test.append(y_pred_proba_single)    
 
