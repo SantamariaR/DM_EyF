@@ -162,7 +162,7 @@ def AgregaVarRandomForest(dataset: pl.DataFrame) -> pl.DataFrame:
     modelo = lgb.train(
         params=PARAMlgb_param,
         train_set=dtrain,
-        verbose_eval=False
+        callbacks=[lgb.log_evaluation(0)]
     )
     
     logger.info("Fin construccion RandomForest")
