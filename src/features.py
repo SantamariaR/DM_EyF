@@ -136,7 +136,7 @@ def AgregaVarRandomForest(dataset: pl.DataFrame) -> pl.DataFrame:
     })
 
     # === Codificar en variables dummies ===
-    df_dummies = pl.get_dummies(df_hojas, columns=df_hojas.columns, drop_first=False)
+    df_dummies = df_hojas.to_dummies()
 
     # === Concatenar con el dataset original ===
     dataset_final = pl.concat([dataset, df_dummies], how="horizontal")
