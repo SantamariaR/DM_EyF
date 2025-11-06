@@ -98,7 +98,7 @@ def evaluamos_en_predict_zlightgbm(df,n_canarios:int) -> dict:
     modelos = []
     predicciones_test = []
     # Entrenar 5 modelos con diferentes semillas
-    for i, semilla in enumerate(SEMILLA+SEMILLERO):
+    for i, semilla in enumerate(SEMILLA[0]):#+SEMILLERO):
         logger.info(f"\n--- Entrenando modelo {i+1} con semilla {semilla} ---")
         
         # Actualizar la semilla en los parámetros

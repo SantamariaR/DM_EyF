@@ -73,7 +73,7 @@ def main2():
     df = convertir_clase_ternaria_a_target(df)    
     
     #Agrego canaritos, un 50% más de canaritos que de variables reales(buscar óptimos)
-    df,n_canarios = add_canaritos(df, seed=SEMILLA[0], canaritos_ratio=0.5)
+    df,n_canarios = add_canaritos(df, seed=SEMILLA[0], canaritos_ratio=0.1)
     
     logger.info(f"DataFrame con canaritos, total columnas: {len(df.columns)}")
     logger.info(f"Número de canaritos añadidos: {n_canarios}")
