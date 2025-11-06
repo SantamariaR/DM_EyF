@@ -179,16 +179,11 @@ def AgregaVarRandomForest(dataset: pl.DataFrame) -> pl.DataFrame:
         
         # Filtrar datos del periodo
         periodo_mask = dataset["foto_mes"] == periodo
-        X_periodo = dataset.filter(periodo_mask).select(campos_buenos)
-        X_periodo_np = X_periodo.to_numpy()
+        df_periodo = dataset.filter(periodo_mask)
+        X_periodo_np = df_periodo.select(campos_buenos).to_numpy()
         
-        print("Inicio prediccion")
-        # Predecir hojas (predicción tipo "leaf")
-        prediccion = modelo.predict(
-            X_periodo_np,
-            pred_leaf=True
-        )
-        logger.info("Fin prediccion")
+        # Predecir hojas
+        prediccion = modelo.predict(X_periodo_np, pred_leaf=True)
         
         # Para cada árbol
         for arbolito in range(qarbolitos):
@@ -198,29 +193,26 @@ def AgregaVarRandomForest(dataset: pl.DataFrame) -> pl.DataFrame:
             hojas_arbol = np.unique(prediccion[:, arbolito])
             
             # Para cada hoja en el árbol
-            for pos, nodo_id in enumerate(hojas_arbol):
+            for nodo_id in hojas_arbol:
                 # Crear nombre de variable
                 var_name = f"rf_{arbolito + 1:03d}_{nodo_id:03d}"
                 
-                # Crear máscara para esta hoja
+                # ✅ CORRECCIÓN: Usar when().then() de Polars
                 mask_hoja = (prediccion[:, arbolito] == nodo_id).astype(int)
                 
-                # Agregar columna al dataset
-                # Necesitamos mapear de vuelta a los índices originales del periodo
-                periodo_indices = dataset.filter(periodo_mask).select(pl.first()).to_series().to_list()
+                # Crear serie para este periodo
+                serie_periodo = pl.Series(mask_hoja)
                 
-                # Crear serie completa con ceros y unos en las posiciones correctas
-                full_series = pl.Series([0] * len(dataset))
-                for i, idx in enumerate(periodo_indices):
-                    if i < len(mask_hoja) and mask_hoja[i] == 1:
-                        full_series = full_series.set(idx, 1)
-                
-                dataset = dataset.with_columns(full_series.alias(var_name))
-            
-        print("\n")
+                # Crear serie completa (0 para otros periodos, mask_hoja para este periodo)
+                dataset = dataset.with_columns(
+                    pl.when(periodo_mask)
+                    .then(serie_periodo)
+                    .otherwise(0)
+                    .alias(var_name)
+                )
     
-    # Eliminar columna clase01
+    # Eliminar columnas temporales
     dataset = dataset.drop("clase01")
     
-    print("Fin AgregaVarRandomForest()")
+    logger.info("Fin AgregaVarRandomForest()")
     return dataset
