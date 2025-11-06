@@ -72,16 +72,22 @@ def main():
     
     
    #03 Análisis e features sobre la clase ternaria(la idea es usar canaritos para podar features)
-    df_canaritos = add_canaritos(df,canaritos_ratio=0.5)
+    logger.info("=== ANÁLISIS DE FEATURES CON CANARITOS ===")
+    df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
+    logger.info(f"Número de canaritos añadidos para análisis: {n_canarios}")
    
     modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
-    
+    logger.info("Análisis de features con canaritos completado.")
+   
+   
     # Cargo si es necesario las features importantes según canaritos
     #modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp19_feature_importance.csv")
     #print(modelo_canaritos_features)
     
+    
+    logger.info(f"Número de features seleccionadas")    
     df = seleccionar_variables_por_canaritos(modelo_canaritos_features,porcentaje_umbral=0.5,df=df)
- 
+    logger.info(f"DataFrame final con {len(df.columns)} columnas después de selección por canaritos")
    
     #04 Convertir clase ternaria a target binario
     df = convertir_clase_ternaria_a_target(df)
