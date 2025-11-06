@@ -97,7 +97,7 @@ def main2():
     logger.info(f">>> Ejecución finalizada. Revisa logs_{STUDY_NAME}.txt")
 
 
-if __name__ == "__main2__":
+if __name__ == "__main__":
     main2()
     
     
