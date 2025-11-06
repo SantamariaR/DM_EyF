@@ -192,7 +192,7 @@ def AgregaVarRandomForest(dataset: pl.DataFrame) -> pl.DataFrame:
         
         # Para cada árbol
         for arbolito in range(qarbolitos):
-            logger.info(f"{arbolito + 1} ", end="")
+            logger.info(f"{arbolito + 1} de {qarbolitos} árboles")
             
             # Obtener hojas únicas para este árbol
             hojas_arbol = np.unique(prediccion[:, arbolito])
