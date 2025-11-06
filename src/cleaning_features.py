@@ -13,25 +13,25 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 def add_canaritos(df: pl.DataFrame, 
-                          seed: int = 102191,
-                          canaritos_ratio: float = 0.5,
-                          columns_to_ignore: List[str] = None) -> pl.DataFrame:
+                  seed: int = 102191,
+                  canaritos_ratio: float = 0.5,
+                  columns_to_ignore: List[str] = None) -> tuple[pl.DataFrame, int]:
     """
     Réplica exacta del comportamiento de R que muestras:
     - Elimina columnas específicas
     - Añade columna 'azar' con valores uniformes
     - Ordena el DataFrame por 'azar' (manteniendo relaciones entre variables)
     - Elimina 'azar'
-    - Añade features canaritos
+    - Añade features canaritos y las coloca al principio
     
     Args:
         df: DataFrame original de Polars
         seed: Semilla para reproducibilidad (102191 por defecto)
         canaritos_ratio: Proporción de features canaritos
-        columns_to_drop: Columnas a eliminar antes de añadir canaritos
+        columns_to_ignore: Columnas a ignorar antes de añadir canaritos
     
     Returns:
-        DataFrame con canaritos y orden aleatorio
+        DataFrame con canaritos al principio y orden aleatorio
     """
     # Configurar semilla
     np.random.seed(seed)
@@ -57,9 +57,11 @@ def add_canaritos(df: pl.DataFrame,
     n_canaritos = max(1, int(n_original_features * canaritos_ratio))
     
     # 4. Añadir features canaritos al DataFrame ordenado
+    canaritos_names = []
     for i in range(n_canaritos):
         random_data = np.random.normal(0, 1, len(df_canaritos))
         canarito_name = f'canarito_{i:03d}'
+        canaritos_names.append(canarito_name)
         
         df_canaritos = df_canaritos.with_columns(
             pl.Series(canarito_name, random_data)
@@ -68,13 +70,23 @@ def add_canaritos(df: pl.DataFrame,
     # 5. Eliminar columna 'azar' (ya cumplió su función de ordenar)
     df_canaritos = df_canaritos.drop('azar')
     
+    # 6. REORDENAR COLUMNAS: Canaritos primero, luego el resto
+    all_columns = df_canaritos.columns
+    # Separar canaritos del resto de columnas
+    non_canaritos_columns = [col for col in all_columns if col not in canaritos_names]
+    # Crear nuevo orden: canaritos primero, luego las demás columnas
+    new_column_order = canaritos_names + non_canaritos_columns
+    # Reordenar el DataFrame
+    df_canaritos = df_canaritos.select(new_column_order)
+    
     print(f"✅ Proceso completado con semilla: {seed}")
     print(f"📊 Columnas ignoradas: {columns_to_ignore}")
     print(f"🎯 Features originales (para cálculo): {n_original_features}")
     print(f"🔔 Features canaritos añadidas: {n_canaritos}")
     print(f"📈 Features totales: {len(df_canaritos.columns)}")
+    print(f"📍 Canaritos colocados al principio del dataset")
     
-    return df_canaritos
+    return df_canaritos, n_canaritos
 
 
 
