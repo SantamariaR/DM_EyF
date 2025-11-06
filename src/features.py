@@ -80,27 +80,16 @@ def feature_engineering_delta_lag(df: pl.DataFrame, columnas: list[str], cant_la
 def AgregaVarRandomForest(dataset: pl.DataFrame) -> pl.DataFrame:
     logger.info("inicio AgregaVarRandomForest()")
     
-    # Parámetros (debes definirlos antes de llamar a la función)
     PARAMtrain = {"training": [202101, 202102, 202103]}
-    PARAMarbolitos = 20
-    PARAMhojas_por_arbol = 16
-    PARAMdatos_por_hoja = 100
-    PARAMmtry_ratio = 0.2
-    
     PARAMlgb_param = {
-        # parametros que se pueden cambiar
-        "num_iterations": PARAMarbolitos,
-        "num_leaves": PARAMhojas_por_arbol,
-        "min_data_in_leaf": PARAMdatos_por_hoja,
-        "feature_fraction_bynode": PARAMmtry_ratio,
-        
-        # para que LightGBM emule Random Forest
+        "num_iterations": 20,
+        "num_leaves": 16,
+        "min_data_in_leaf": 100,
+        "feature_fraction_bynode": 0.2,
         "boosting": "rf",
         "bagging_fraction": (1.0 - 1.0 / np.exp(1.0)),
         "bagging_freq": 1,
         "feature_fraction": 1.0,
-        
-        # genericos de LightGBM
         "max_bin": 31,
         "objective": "binary",
         "first_metric_only": True,
@@ -108,111 +97,51 @@ def AgregaVarRandomForest(dataset: pl.DataFrame) -> pl.DataFrame:
         "feature_pre_filter": False,
         "force_row_wise": True,
         "verbosity": -100,
-        "max_depth": -1,
-        "min_gain_to_split": 0.0,
-        "min_sum_hessian_in_leaf": 0.001,
-        "lambda_l1": 0.0,
-        "lambda_l2": 0.0,
-        
-        "pos_bagging_fraction": 1.0,
-        "neg_bagging_fraction": 1.0,
-        "is_unbalance": False,
-        "scale_pos_weight": 1.0,
-        
-        "drop_rate": 0.1,
-        "max_drop": 50,
-        "skip_drop": 0.5,
-        
-        "extra_trees": False
     }
-    
-    # Crear variable clase01
+
+    # Variable clase01
     dataset = dataset.with_columns(
         pl.when(pl.col("clase_ternaria").is_in(["BAJA+2", "BAJA+1"]))
         .then(1)
         .otherwise(0)
         .alias("clase01")
     )
-    
-    # Definir campos buenos (excluyendo clase_ternaria y clase01)
-    campos_buenos = [col for col in dataset.columns if col not in ["clase_ternaria", "clase01"]]
-    
-    # Crear variable entrenamiento
+
+    campos_buenos = [c for c in dataset.columns if c not in ["clase_ternaria", "clase01"]]
+
     dataset = dataset.with_columns(
         pl.col("foto_mes").is_in(PARAMtrain["training"]).cast(pl.Int8).alias("entrenamiento")
     )
-    
-    # Preparar datos de entrenamiento
+
     train_mask = dataset["entrenamiento"] == 1
     X_train = dataset.filter(train_mask).select(campos_buenos)
     y_train = dataset.filter(train_mask)["clase01"]
-    
-    # Convertir a numpy para LightGBM
-    X_train_np = X_train.to_numpy()
-    y_train_np = y_train.to_numpy()
-    
-    # Crear Dataset de LightGBM
-    dtrain = lgb.Dataset(
-        data=X_train_np,
-        label=y_train_np,
-        free_raw_data=False
-    )
-    
-    # Entrenar modelo
+
     modelo = lgb.train(
         params=PARAMlgb_param,
-        train_set=dtrain,
-        callbacks=[lgb.log_evaluation(0)]
+        train_set=lgb.Dataset(X_train.to_numpy(), label=y_train.to_numpy()),
+        callbacks=[lgb.log_evaluation(0)],
     )
-    
+
     logger.info("Fin construccion RandomForest")
-    
-    # Guardar modelo
-    #modelo.save_model("modelo.model")
-    
-    qarbolitos = PARAMlgb_param["num_iterations"]
-    periodos = dataset["foto_mes"].unique().to_list()
-    
-    # Hacer predicciones por periodo
-    for periodo in periodos:
-        logger.info(f"periodo = {periodo}")
-        
-        # Filtrar datos del periodo
-        periodo_mask = dataset["foto_mes"] == periodo
-        df_periodo = dataset.filter(periodo_mask)
-        X_periodo_np = df_periodo.select(campos_buenos).to_numpy()
-        
-        # Predecir hojas
-        prediccion = modelo.predict(X_periodo_np, pred_leaf=True)
-        
-        # Para cada árbol
-        for arbolito in range(qarbolitos):
-            logger.info(f"{arbolito + 1} de {qarbolitos} árboles")
-            
-            # Obtener hojas únicas para este árbol
-            hojas_arbol = np.unique(prediccion[:, arbolito])
-            
-            # Para cada hoja en el árbol
-            for nodo_id in hojas_arbol:
-                # Crear nombre de variable
-                var_name = f"rf_{arbolito + 1:03d}_{nodo_id:03d}"
-                
-                # ✅ CORRECCIÓN: Usar when().then() de Polars
-                mask_hoja = (prediccion[:, arbolito] == nodo_id).astype(int)
-                
-                # Crear serie para este periodo
-                serie_periodo = pl.Series(mask_hoja)
-                
-                # Crear serie completa (0 para otros periodos, mask_hoja para este periodo)
-                dataset = dataset.with_columns(
-                    pl.when(periodo_mask)
-                    .then(serie_periodo)
-                    .otherwise(0)
-                    .alias(var_name)
-                )
-    
-    # Eliminar columnas temporales
-    dataset = dataset.drop("clase01")
-    
+
+    # === Predicciones para todo el dataset ===
+    X_all = dataset.select(campos_buenos).to_numpy()
+    pred_leafs = modelo.predict(X_all, pred_leaf=True)  # shape (n_filas, n_arboles)
+    n_arboles = pred_leafs.shape[1]
+
+    # === Crear DataFrame con las hojas ===
+    df_hojas = pl.DataFrame({
+        f"rf_tree_{i:03d}": pred_leafs[:, i] for i in range(n_arboles)
+    })
+
+    # === Codificar en variables dummies ===
+    df_dummies = pl.get_dummies(df_hojas, columns=df_hojas.columns, drop_first=False)
+
+    # === Concatenar con el dataset original ===
+    dataset_final = pl.concat([dataset, df_dummies], how="horizontal")
+
+    dataset_final = dataset_final.drop(["clase01"])
     logger.info("Fin AgregaVarRandomForest()")
-    return dataset
+
+    return dataset_final
