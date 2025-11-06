@@ -116,13 +116,32 @@ def evaluamos_en_predict_zlightgbm(df,n_canarios:int) -> dict:
         # Guardar modelo
         modelos.append(model)
         
-        # Predecir con este modelo
-        y_pred_proba_single = abs(model.predict(X_test, raw_score=False))
-        logger.info(f"Predicciones modelo {i+1} (primeros 10): {y_pred_proba_single[:10]}")
-        predicciones_test.append(y_pred_proba_single)    
+        # ✅ CORRECCIÓN: Eliminar abs() y verificar predicciones
+        y_pred_proba_single = model.predict(X_test, raw_score=False)
+        
+        # Debugging de las predicciones
+        logger.info(f"Rango predicciones modelo {i+1}: [{y_pred_proba_single.min():.4f}, {y_pred_proba_single.max():.4f}]")
+        logger.info(f"Predicciones modelo {i+1} (primeros 5): {[f'{x:.4f}' for x in y_pred_proba_single[:5]]}")
+        
+        # Verificar si hay valores fuera de [0,1]
+        if y_pred_proba_single.min() < 0 or y_pred_proba_single.max() > 1:
+            logger.warning(f"⚠️ Modelo {i+1} tiene predicciones fuera de [0,1]")
+            # Aplicar sigmoid si es necesario (pero raw_score=False debería evitarlo)
+            y_pred_proba_single = 1 / (1 + np.exp(-y_pred_proba_single))
+        
+        predicciones_test.append(y_pred_proba_single)
 
-    # Promediar las predicciones de test
+    # Promediar las predicciones
     y_pred_proba_ensemble = np.mean(predicciones_test, axis=0)
+    
+    # ✅ VERIFICAR el ensemble también
+    logger.info(f"Rango predicciones ensemble: [{y_pred_proba_ensemble.min():.4f}, {y_pred_proba_ensemble.max():.4f}]")
+    logger.info(f"Predicciones ensemble (primeras 10): {[f'{x:.4f}' for x in y_pred_proba_ensemble[:10]]}")
+    
+    # Verificar distribución
+    unique_values = np.unique(y_pred_proba_ensemble.round(4))
+    logger.info(f"Valores únicos en predicciones (redondeados a 4 decimales): {unique_values}")
+
     
     # Le añado la columna de predicciones al df_test original para análisis posterior si es necesario
     df_test = df_test.with_columns([
