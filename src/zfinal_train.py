@@ -116,8 +116,12 @@ def evaluamos_en_predict_zlightgbm(df,n_canarios:int) -> dict:
         # Guardar modelo
         modelos.append(model)
         
-        # ✅ CORRECCIÓN: Eliminar abs() y verificar predicciones
-        y_pred_proba_single = model.predict(X_test, raw_score=False)
+        # ✅ CORRECCIÓN: Réplica exacta del comportamiento de R
+        # En R: predict(modelo_final, data.matrix(dfuture[, campos_buenos, with= FALSE]))
+        X_test_matrix = X_test.values if hasattr(X_test, 'values') else X_test
+        
+        # Opción 1: Probabilidades (como en R)
+        y_pred_proba_single = model.predict(X_test_matrix, raw_score=False)
         
         # Debugging de las predicciones
         logger.info(f"Rango predicciones modelo {i+1}: [{y_pred_proba_single.min():.4f}, {y_pred_proba_single.max():.4f}]")
