@@ -6,7 +6,7 @@ import logging
 
 # Funciones personalizadas
 
-from src.loader import cargar_datos,calcular_clase_ternaria,contar_por_grupos,convertir_clase_ternaria_a_target, cargar_features_importantes
+from src.loader import cargar_datos,calcular_clase_ternaria,contar_por_grupos,convertir_clase_ternaria_a_target, cargar_features_importantes,calcular_clase_ternaria_bis
 from src.features import feature_engineering_lag, feature_engineering_delta_lag,AgregaVarRandomForest
 from src.config import *
 from src.optimization import optimizar,evaluar_en_test,guardar_resultados_test
@@ -50,7 +50,7 @@ def main():
 
    
     #01 Clase ternaria
-    df = calcular_clase_ternaria(df)
+    df = calcular_clase_ternaria_bis(df)
     logger.info(f"Grupos de clase ternaria por mes:{contar_por_grupos(df)}")
     
         

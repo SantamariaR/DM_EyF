@@ -541,7 +541,7 @@ def evaluar_en_test(df, mejores_params) -> dict:
     # Para test sólo tomo como positivos BAJA+2
     X_test = df_test.drop(["clase_ternaria", "clase_01"]).to_pandas()
     y_test = df_test["clase_ternaria"].to_pandas()
-    y_test = (y_test == "BAJA+2").astype(int)
+    y_test = (y_test == "BAJA+3").astype(int)
     
       
     logger.info(f"Train dataset listo: {X.shape}, Pos: {y.sum()}, Neg: {len(y)-y.sum()} ")

@@ -111,7 +111,7 @@ def calcular_ganancia_acumulada(df, col_probabilidad="pred_proba_ensemble", col_
     
     # Calcular ganancia individual
     df_con_ganancia = df_ordenado.with_columns([
-        pl.when(pl.col(col_clase) == "BAJA+2")
+        pl.when(pl.col(col_clase) == "BAJA+3")
         .then(GANANCIA_ACIERTO)  # Sumar si es BAJA+2
         .otherwise(COSTO_ESTIMULO)  # Restar si es 0
         .alias("ganancia_individual")

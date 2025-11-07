@@ -130,7 +130,7 @@ def convertir_clase_ternaria_a_target(df: pl.DataFrame) -> pl.DataFrame:
     df_result = df_result.with_columns(
         pl.when(pl.col('clase_ternaria') == 'CONTINUA')
         .then(pl.lit(0))  # Usar pl.lit() para forzar tipo numérico
-        .when(pl.col('clase_ternaria').is_in(['BAJA+1', 'BAJA+2']))
+        .when(pl.col('clase_ternaria').is_in(['BAJA+1', 'BAJA+2',"BAJA+3"]))
         .then(pl.lit(1))  # Usar pl.lit() para forzar tipo numérico
         .alias('clase_01')
     )
@@ -189,3 +189,71 @@ def cargar_features_importantes(path: str, ordenar_por_importancia: bool = True)
     except Exception as e:
         logger.error(f"Error al cargar el dataset: {e}")
         raise   
+    
+    
+def calcular_clase_ternaria_bis(dataset: pl.DataFrame) -> pl.DataFrame:
+   """
+   Calcula la variable clase_ternaria con valores CONTINUA, BAJA+1, BAJA+2 y BAJA+3.
+   """
+   dsimple = (
+       dataset
+       .with_columns(
+           pl.col("foto_mes").alias("pos"),
+           (pl.col("foto_mes").floordiv(100) * 12 + pl.col("foto_mes").mod(100)).alias("periodo0")
+       )
+       .select(["pos", "numero_de_cliente", "periodo0"])
+       .sort(["numero_de_cliente", "periodo0"])
+   )
+   periodo_ultimo = dsimple["periodo0"].max()
+   periodo_anteultimo = periodo_ultimo - 1
+   periodo_tercioultimo = periodo_ultimo - 2
+   dsimple = (
+       dsimple
+       .with_columns([
+           pl.col("periodo0").shift(-1).over("numero_de_cliente").alias("periodo1"),
+           pl.col("periodo0").shift(-2).over("numero_de_cliente").alias("periodo2"),
+           pl.col("periodo0").shift(-3).over("numero_de_cliente").alias("periodo3"),
+       ])
+       # CONTINUA
+       .with_columns(
+           pl.when(pl.col("periodo0") < periodo_tercioultimo)
+           .then(pl.lit("CONTINUA"))
+           .otherwise(pl.lit(None))
+           .alias("clase_ternaria")
+       )
+       # BAJA+1
+       .with_columns(
+           pl.when(
+               (pl.col("periodo0") < periodo_ultimo) &
+               (pl.col("periodo1").is_null() | (pl.col("periodo0") + 1 < pl.col("periodo1")))
+           )
+           .then(pl.lit("BAJA+1"))
+           .otherwise(pl.col("clase_ternaria"))
+           .alias("clase_ternaria")
+       )
+       # BAJA+2
+       .with_columns(
+           pl.when(
+               (pl.col("periodo0") < periodo_anteultimo) &
+               (pl.col("periodo0") + 1 == pl.col("periodo1")) &
+               (pl.col("periodo2").is_null() | (pl.col("periodo0") + 2 < pl.col("periodo2")))
+           )
+           .then(pl.lit("BAJA+2"))
+           .otherwise(pl.col("clase_ternaria"))
+           .alias("clase_ternaria")
+       )
+       # BAJA+3
+       .with_columns(
+           pl.when(
+               (pl.col("periodo0") < periodo_tercioultimo) &
+               (pl.col("periodo0") + 1 == pl.col("periodo1")) &
+               (pl.col("periodo0") + 2 == pl.col("periodo2")) &
+               (pl.col("periodo3").is_null() | (pl.col("periodo0") + 3 < pl.col("periodo3")))
+           )
+           .then(pl.lit("BAJA+3"))
+           .otherwise(pl.col("clase_ternaria"))
+           .alias("clase_ternaria")
+       )
+       .sort("pos")
+   )
+   return dataset.with_columns(dsimple.select("clase_ternaria"))
