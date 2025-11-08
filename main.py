@@ -63,7 +63,7 @@ def main():
     # Obtener columnas para aplicar lags
     columnas_lag = [col for col in df.columns if col not in excluir]
     
-    cant_lag = 2
+    cant_lag = 3
     df = feature_engineering_lag(df, columnas_lag, cant_lag=cant_lag)
     df = feature_engineering_delta_lag(df, columnas_lag, cant_lag=cant_lag)
     
@@ -73,15 +73,15 @@ def main():
     
    #03 Análisis e features sobre la clase ternaria(la idea es usar canaritos para podar features)
     logger.info("=== ANÁLISIS DE FEATURES CON CANARITOS ===")
-    #df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
+    df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
     #logger.info(f"Número de canaritos añadidos para análisis: {n_canarios}")
    
-    #modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
+    modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
     logger.info("Análisis de features con canaritos completado.")
    
    
     # Cargo si es necesario las features importantes según canaritos
-    modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp27_feature_importance.csv")
+    #modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp27_feature_importance.csv")
     #print(modelo_canaritos_features)
     
     
