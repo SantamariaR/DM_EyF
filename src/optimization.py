@@ -651,9 +651,8 @@ def crear_o_cargar_estudio(study_name: str = None, semilla: int = None) -> optun
     Returns:
         optuna.Study: Estudio de Optuna (nuevo o cargado)
     """
-    #study_name = STUDY_NAME
-    study_name = "exp27"
-    
+    study_name = STUDY_NAME
+     
     if semilla is None:
         semilla = SEMILLA[0] if isinstance(SEMILLA, list) else SEMILLA
   
@@ -726,7 +725,6 @@ def optimizar(df: pd.DataFrame, n_trials: int, study_name: str = None, undersamp
     """
 
     study_name = STUDY_NAME
-    study_name = "exp27"
     
 
     logger.info(f"Iniciando optimización con {n_trials} trials")
