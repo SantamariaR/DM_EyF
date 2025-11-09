@@ -1,4 +1,4 @@
-STUDY_NAME : "exp32"
+STUDY_NAME : "exp33"
 
 #BUCKET_NAME: "resultados"
 
@@ -18,7 +18,7 @@ competencia01:
     PASO_ENVIOS: 500
     GANANCIA_ACIERTO: 78
     COSTO_ESTIMULO: -2
-    UNDERSUMPLING: 0.05
+    UNDERSUMPLING: 0.5
     
 
 

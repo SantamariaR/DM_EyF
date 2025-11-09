@@ -73,7 +73,7 @@ def main():
     
    #03 Análisis e features sobre la clase ternaria(la idea es usar canaritos para podar features)
     logger.info("=== ANÁLISIS DE FEATURES CON CANARITOS ===")
-    df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.2)
+    df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
     logger.info(f"Número de canaritos añadidos para análisis: {n_canarios}")
    
     modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
