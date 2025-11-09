@@ -42,15 +42,15 @@ def main():
     
     # Intento arreglar datadrift
 #    df = estandarizar_variables_monetarias_polars(df)
-    df = convertir_ceros_a_nan(df, columna_mes='foto_mes', umbral_ceros=0.99)
+#    df = convertir_ceros_a_nan(df, columna_mes='foto_mes', umbral_ceros=0.99)
 #   Tiro algunas columnas que cambien tendencia
-    columnas_a_eliminar = ["internet","cprestamos_personales","mprestamos_personales","mpayroll2","mpagodeservicios","Master_msaldototal","Master_msaldopesos","Visa_Fvencimiento","Visa_msaldototal","Visa_msaldopesos","Visa_madelantopesos"]
+    columnas_a_eliminar = ["cprestamos_personales","mprestamos_personales"]
     columnas_base = [col for col in df.columns if col not in columnas_a_eliminar]
     df = df.select(columnas_base)
 
    
     #01 Clase ternaria
-    df = calcular_clase_ternaria_bis(df)
+    df = calcular_clase_ternaria(df)
     logger.info(f"Grupos de clase ternaria por mes:{contar_por_grupos(df)}")
     
         
@@ -63,7 +63,7 @@ def main():
     # Obtener columnas para aplicar lags
     columnas_lag = [col for col in df.columns if col not in excluir]
     
-    cant_lag = 3
+    cant_lag = 2
     df = feature_engineering_lag(df, columnas_lag, cant_lag=cant_lag)
     df = feature_engineering_delta_lag(df, columnas_lag, cant_lag=cant_lag)
     
@@ -73,8 +73,8 @@ def main():
     
    #03 Análisis e features sobre la clase ternaria(la idea es usar canaritos para podar features)
     logger.info("=== ANÁLISIS DE FEATURES CON CANARITOS ===")
-    df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
-    #logger.info(f"Número de canaritos añadidos para análisis: {n_canarios}")
+    df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.2)
+    logger.info(f"Número de canaritos añadidos para análisis: {n_canarios}")
    
     modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
     logger.info("Análisis de features con canaritos completado.")

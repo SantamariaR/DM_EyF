@@ -142,7 +142,7 @@ def train_overfit_lgbm_features(df: pl.DataFrame, objective: str = 'binary', und
 #    df_neg = df_train.filter(pl.col("clase_ternaria") == "CONTINUA")
     
     # Separar clases
-    df_pos = df_train.filter(pl.col("clase_ternaria").is_in(["BAJA+1", "BAJA+2","BAJA+3"]))
+    df_pos = df_train.filter(pl.col("clase_ternaria").is_in(["BAJA+1", "BAJA+2"]))
     df_neg = df_train.filter(pl.col("clase_ternaria") == "CONTINUA")
 
     # Polars no tiene sample(frac=...), pero podemos calcular cuántas filas queremos
@@ -158,7 +158,7 @@ def train_overfit_lgbm_features(df: pl.DataFrame, objective: str = 'binary', und
     # Preparar dataset para LightGBM, entrenar y testear
     # ==================================================
     # Mapeo clase_ternaria a numérico
-    mapping = {'CONTINUA': 0, 'BAJA+1': 1, 'BAJA+2': 1,"BAJA+3":1}
+    mapping = {'CONTINUA': 0, 'BAJA+1': 1, 'BAJA+2': 1}
     
     X = df_sub.drop(["clase_ternaria","numero_de_cliente"]).to_pandas()
     y = df_sub["clase_ternaria"].to_pandas().map(mapping)

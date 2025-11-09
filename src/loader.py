@@ -130,7 +130,7 @@ def convertir_clase_ternaria_a_target(df: pl.DataFrame) -> pl.DataFrame:
     df_result = df_result.with_columns(
         pl.when(pl.col('clase_ternaria') == 'CONTINUA')
         .then(pl.lit(0))  # Usar pl.lit() para forzar tipo numérico
-        .when(pl.col('clase_ternaria').is_in(['BAJA+1', 'BAJA+2',"BAJA+3"]))
+        .when(pl.col('clase_ternaria').is_in(['BAJA+1', 'BAJA+2']))
         .then(pl.lit(1))  # Usar pl.lit() para forzar tipo numérico
         .alias('clase_01')
     )
