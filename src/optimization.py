@@ -498,10 +498,10 @@ def evaluar_en_test(df, mejores_params) -> dict:
     params.update(mejores_params)
    
     logger.info("=== EVALUACIÓN EN CONJUNTO DE TEST ===")
-    logger.info(f"Período de test: {MES_TEST}")
+    #logger.info(f"Período de test: {MES_TEST}")
   
     # Períodos de evaliación
-    periodos_entrenamiento = MES_TRAIN + MES_VALIDACION
+    periodos_entrenamiento = MES_TRAIN + [202101,202102] + MES_VALIDACION
     #periodo_validacion = MES_VALIDACION
     periodo_test = MES_TEST
         
@@ -532,11 +532,6 @@ def evaluar_en_test(df, mejores_params) -> dict:
     y = df_sub["clase_01"].to_pandas()
 
     dtrain = lgb.Dataset(X, label=y)
-    
-    #X_val = df_val.drop(["clase_ternaria", "clase_01"]).to_pandas()
-    #y_val = df_val["clase_01"].to_pandas()
-    
-    #val_data = lgb.Dataset(X_val, label=y_val) 
     
     # Para test sólo tomo como positivos BAJA+2
     X_test = df_test.drop(["clase_ternaria", "clase_01"]).to_pandas()

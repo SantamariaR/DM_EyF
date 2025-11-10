@@ -128,9 +128,9 @@ def convertir_clase_ternaria_a_target(df: pl.DataFrame) -> pl.DataFrame:
     
     # Crear nueva columna clase_01 - FORZANDO TIPO NUMÉRICO
     df_result = df_result.with_columns(
-        pl.when(pl.col('clase_ternaria') == 'CONTINUA')
+        pl.when(pl.col('clase_ternaria').is_in(['BAJA+1', 'CONTINUA']))
         .then(pl.lit(0))  # Usar pl.lit() para forzar tipo numérico
-        .when(pl.col('clase_ternaria').is_in(['BAJA+1', 'BAJA+2']))
+        .when(pl.col('clase_ternaria').is_in(['BAJA+3', 'BAJA+2']))
         .then(pl.lit(1))  # Usar pl.lit() para forzar tipo numérico
         .alias('clase_01')
     )

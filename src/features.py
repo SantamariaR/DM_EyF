@@ -80,7 +80,7 @@ def feature_engineering_delta_lag(df: pl.DataFrame, columnas: list[str], cant_la
 def AgregaVarRandomForest(dataset: pl.DataFrame) -> pl.DataFrame:
     logger.info("inicio AgregaVarRandomForest()")
     
-    PARAMtrain = {"training": [202101, 202102, 202103]}
+    PARAMtrain = {"training": [202011,202012,202101, 202102, 202103]}
     PARAMlgb_param = {
         "num_iterations": 20,
         "num_leaves": 16,
@@ -101,7 +101,7 @@ def AgregaVarRandomForest(dataset: pl.DataFrame) -> pl.DataFrame:
 
     # Variable clase01
     dataset = dataset.with_columns(
-        pl.when(pl.col("clase_ternaria").is_in(["BAJA+2", "BAJA+1"]))
+        pl.when(pl.col("clase_ternaria").is_in(["BAJA+2", "BAJA+3"]))
         .then(1)
         .otherwise(0)
         .alias("clase01")
