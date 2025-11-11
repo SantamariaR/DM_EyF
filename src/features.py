@@ -145,3 +145,58 @@ def AgregaVarRandomForest(dataset: pl.DataFrame) -> pl.DataFrame:
     logger.info("Fin AgregaVarRandomForest()")
 
     return dataset_final
+
+
+def PPR(dataset: pl.DataFrame, foto_mes_col: str = "foto_mes") -> pl.DataFrame:
+    """
+    Calcula las combinaciones lineales de Projection Pursuit Regression (PPR)
+    usando los pesos obtenidos en R.
+
+    - Escala las variables numéricas por media y desvío estándar dentro de cada `foto_mes`
+    - Agrega columnas 'ppr_term_1' y 'ppr_term_2'
+    """
+
+    alpha = {
+        "ctrx_quarter": [-0.5451, -0.6825],
+        "mcuentas_saldo": [-0.0264, -0.8541],
+        "mpasivos_margen": [-0.1729, -0.0899],
+        "cdescubierto_preacordado_deltal": [-0.6106, -0.1276],
+        "rentabilidad_anual_lag2": [0.0951, 0.3177],
+        "Visa_status": [0.2962, -0.5178],
+        "cpayroll_trx": [-0.4514, -0.3249],
+        "rentabilidad_anual_lag1": [-0.1498, -0.8664],
+        "Visa_fechalta_lag2": [0.1278, -0.0956],
+        "Master_refinanciacion_limite": [0.0197, -0.0956],
+    }
+
+    vars_ppr = list(alpha.keys())
+
+    # 1️⃣ Calcular media y desviación por mes
+    stats = (
+        dataset
+        .group_by(foto_mes_col)
+        .agg([
+            *[pl.col(v).mean().alias(f"{v}_mean") for v in vars_ppr],
+            *[pl.col(v).std().alias(f"{v}_std") for v in vars_ppr],
+        ])
+    )
+
+    # 2️⃣ Unir stats al dataset original (para escalar dentro de cada mes)
+    df_joined = dataset.join(stats, on=foto_mes_col, how="left")
+
+    # 3️⃣ Normalizar las variables dentro de cada foto_mes
+    df_scaled = df_joined.with_columns([
+        ((pl.col(v) - pl.col(f"{v}_mean")) / pl.col(f"{v}_std")).alias(v)
+        for v in vars_ppr
+    ])
+
+    # 4️⃣ Calcular las combinaciones lineales (αᵗx)
+    df_ppr = df_scaled.with_columns([
+        sum(pl.col(v) * w[0] for v, w in alpha.items()).alias("ppr_term_1"),
+        sum(pl.col(v) * w[1] for v, w in alpha.items()).alias("ppr_term_2")
+    ]).select(["ppr_term_1", "ppr_term_2"])
+
+    # 5️⃣ Agregar al dataset original
+    dataset_out = dataset.hstack(df_ppr)
+
+    return dataset_out

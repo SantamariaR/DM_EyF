@@ -197,7 +197,7 @@ def train_overfit_lgbm_features(df: pl.DataFrame, objective: str = 'binary', und
                 feature_importance_total[feature] = 0
             feature_importance_total[feature] += imp
         
-        print(f"✅ Modelo {i+1}/{5} completado (seed: {semilla})")
+        logger.info(f"✅ Modelo {i+1}/{5} completado (seed: {semilla})")
         
     # Calcular importancia promedio
     feature_importance_avg = {k: v / 5 for k, v in feature_importance_total.items()}
@@ -209,14 +209,14 @@ def train_overfit_lgbm_features(df: pl.DataFrame, objective: str = 'binary', und
         reverse=True
     ))
     
-    print(f"\n📊 Resumen de importancia de features ({5} modelos):")
-    print(f"🔝 Top 10 features más importantes:")
+    logger.info(f"\n📊 Resumen de importancia de features ({5} modelos):")
+    logger.info(f"🔝 Top 10 features más importantes:")
     for i, (feature, importance) in enumerate(list(feature_importance_sorted.items())[:10]):
-        print(f"  {i+1:2d}. {feature}: {importance:.4f}")
+        logger.info(f"  {i+1:2d}. {feature}: {importance:.4f}")
     
-    print(f"\n🔚 Bottom 10 features menos importantes:")
+    logger.info(f"\n🔚 Bottom 10 features menos importantes:")
     for i, (feature, importance) in enumerate(list(feature_importance_sorted.items())[-10:]):
-        print(f"  {i+1:2d}. {feature}: {importance:.4f}")
+        logger.info(f"  {i+1:2d}. {feature}: {importance:.4f}")
         
     if archivo_base is None:
         archivo_base = STUDY_NAME

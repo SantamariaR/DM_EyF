@@ -7,7 +7,7 @@ import logging
 # Funciones personalizadas
 
 from src.loader import cargar_datos,calcular_clase_ternaria,contar_por_grupos,convertir_clase_ternaria_a_target, cargar_features_importantes,calcular_clase_ternaria_bis
-from src.features import feature_engineering_lag, feature_engineering_delta_lag,AgregaVarRandomForest
+from src.features import feature_engineering_lag, feature_engineering_delta_lag,AgregaVarRandomForest,PPR
 from src.config import *
 from src.optimization import optimizar,evaluar_en_test,guardar_resultados_test
 from src.best_params import cargar_mejores_hiperparametros
@@ -67,21 +67,24 @@ def main():
     df = feature_engineering_lag(df, columnas_lag, cant_lag=cant_lag)
     df = feature_engineering_delta_lag(df, columnas_lag, cant_lag=cant_lag)
     
+    # Intentamos generar features con PPR
+    #df = PPR(df)
+    
     # Hacemos un RF para agregar variables
     df = AgregaVarRandomForest(df)
     
     
    #03 Análisis e features sobre la clase ternaria(la idea es usar canaritos para podar features)
     logger.info("=== ANÁLISIS DE FEATURES CON CANARITOS ===")
-    df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
+    #df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
     #logger.info(f"Número de canaritos añadidos para análisis: {n_canarios}")
    
-    modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
+    #modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
     logger.info("Análisis de features con canaritos completado.")
    
    
     # Cargo si es necesario las features importantes según canaritos
-    #modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp33_feature_importance.csv")
+    modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp36_feature_importance.csv")
     #print(modelo_canaritos_features)
     
     
