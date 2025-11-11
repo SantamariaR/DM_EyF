@@ -63,7 +63,7 @@ def main():
     # Obtener columnas para aplicar lags
     columnas_lag = [col for col in df.columns if col not in excluir]
     
-    cant_lag = 2
+    cant_lag = 3
     df = feature_engineering_lag(df, columnas_lag, cant_lag=cant_lag)
     df = feature_engineering_delta_lag(df, columnas_lag, cant_lag=cant_lag)
     
