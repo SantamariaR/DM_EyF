@@ -69,7 +69,7 @@ def evaluar_en_predict(df, mejores_params) -> dict:
     #logger.info("=== EVALUACIÓN EN CONJUNTO DE TEST ===")
     
     # Períodos de evaluación
-    periodos_entrenamiento = MES_TRAIN + [202101,202102] + MES_VALIDACION + [202104,202105] #+ MES_TEST
+    periodos_entrenamiento = MES_TRAIN + [202103] + MES_VALIDACION + [202105,202106] #+ MES_TEST
     #periodo_validacion = MES_TEST
     periodo_test = MES_PREDIC
         

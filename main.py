@@ -13,7 +13,7 @@ from src.optimization import optimizar,evaluar_en_test,guardar_resultados_test
 from src.best_params import cargar_mejores_hiperparametros
 from src.final_training import evaluar_en_predict
 from src.output_manager import guardar_resultados_predict
-from src.cleaning_features import train_overfit_lgbm_features, add_canaritos, seleccionar_variables_por_canaritos,estandarizar_variables_monetarias_polars,convertir_ceros_a_nan
+from src.cleaning_features import train_overfit_lgbm_features, add_canaritos, seleccionar_variables_por_canaritos,estandarizar_variables_monetarias_polars,convertir_ceros_a_nan,ajustar_mediana_6_meses
 
 
 # Nombre del log fijo en lugar de uno con timestamp
@@ -50,7 +50,7 @@ def main():
 
    
     #01 Clase ternaria
-    df = calcular_clase_ternaria_bis(df)
+    df = calcular_clase_ternaria(df)
     logger.info(f"Grupos de clase ternaria por mes:{contar_por_grupos(df)}")
     
         
@@ -63,7 +63,13 @@ def main():
     # Obtener columnas para aplicar lags
     columnas_lag = [col for col in df.columns if col not in excluir]
     
-    cant_lag = 3
+    # Corregimos los meses 06 y 08
+    df = ajustar_mediana_6_meses(df, columnas_lag, fecha_objetivo=202106, meses_atras=6)
+
+    df = ajustar_mediana_6_meses(df, columnas_lag, fecha_objetivo=202108, meses_atras=6)    
+    
+    # Creamos lags de las variables
+    cant_lag = 2
     df = feature_engineering_lag(df, columnas_lag, cant_lag=cant_lag)
     df = feature_engineering_delta_lag(df, columnas_lag, cant_lag=cant_lag)
     
@@ -84,7 +90,7 @@ def main():
    
    
     # Cargo si es necesario las features importantes según canaritos
-    modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp36_feature_importance.csv")
+    modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp33_feature_importance.csv")
     #print(modelo_canaritos_features)
     
     

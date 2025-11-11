@@ -10,6 +10,8 @@ import os
 from datetime import datetime
 from .config import *
 from .gain_function import calcular_ganancia, ganancia_evaluator_lgb,ganancia_evaluator_manual, calcular_ganancia_acumulada
+from src.cleaning_features import ajustar_mediana_6_meses
+
 
 logger = logging.getLogger(__name__)
 
@@ -501,14 +503,14 @@ def evaluar_en_test(df, mejores_params) -> dict:
     #logger.info(f"Período de test: {MES_TEST}")
   
     # Períodos de evaliación
-    periodos_entrenamiento = MES_TRAIN + [202101,202102] + MES_VALIDACION
+    periodos_entrenamiento = MES_TRAIN + [202103] + MES_VALIDACION
     #periodo_validacion = MES_VALIDACION
     periodo_test = MES_TEST
         
     logger.info(f"Períodos de entrenamiento: {periodos_entrenamiento}")
     #logger.info(f"Período de Validación: {periodo_validacion}")
     logger.info(f"Período de Testeo: {periodo_test}")
- 
+    
     # Data preparación, train y test
     df_train = df.filter(pl.col("foto_mes").is_in(periodos_entrenamiento))
     #df_val = df.filter(pl.col("foto_mes").is_in(periodo_validacion))
@@ -647,6 +649,7 @@ def crear_o_cargar_estudio(study_name: str = None, semilla: int = None) -> optun
         optuna.Study: Estudio de Optuna (nuevo o cargado)
     """
     study_name = STUDY_NAME
+    study_name = 'exp33'
      
     if semilla is None:
         semilla = SEMILLA[0] if isinstance(SEMILLA, list) else SEMILLA
@@ -720,7 +723,7 @@ def optimizar(df: pd.DataFrame, n_trials: int, study_name: str = None, undersamp
     """
 
     study_name = STUDY_NAME
-    
+    study_name = 'exp33'
 
     logger.info(f"Iniciando optimización con {n_trials} trials")
     logger.info(f"Configuración: TRAIN={MES_TRAIN}, VALID={MES_VALIDACION}, SEMILLA={SEMILLA}")

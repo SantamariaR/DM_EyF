@@ -381,3 +381,41 @@ def convertir_ceros_a_nan(df, columna_mes='foto_mes', umbral_ceros=0.8):
         resultados.append(df_mes)
     
     return pl.concat(resultados)
+
+
+
+# Intento de arreglo de datadrifting
+
+def ajustar_mediana_6_meses(df, columnas_ajustar, fecha_objetivo=202106, meses_atras=6):
+    """
+    Ajusta las variables basándose en la mediana de los últimos 6 meses.
+    """
+    # Calcular fecha límite para los 6 meses hacia atrás
+    fecha_limite = fecha_objetivo - meses_atras
+    
+    for var in columnas_ajustar:
+        if var in df.columns:
+            # Mediana histórica (últimos 6 meses excluyendo el objetivo)
+            mediana_hist = df.filter(
+                (pl.col('foto_mes') >= fecha_limite) & 
+                (pl.col('foto_mes') < fecha_objetivo)
+            ).select(pl.col(var).median()).item()
+            
+            # Mediana del mes objetivo
+            mediana_objetivo = df.filter(pl.col('foto_mes') == fecha_objetivo).select(
+                pl.col(var).median()
+            ).item()
+            
+            # Calcular factor evitando división por cero
+            if mediana_objetivo != 0 and mediana_hist is not None:
+                factor = mediana_hist / mediana_objetivo
+                
+                # Aplicar ajuste
+                df = df.with_columns(
+                    pl.when(pl.col('foto_mes') == fecha_objetivo)
+                    .then(pl.col(var) * factor)
+                    .otherwise(pl.col(var))
+                    .alias(var)
+                )
+    
+    return df
