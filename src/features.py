@@ -167,8 +167,8 @@ def PPR(dataset: pl.DataFrame, foto_mes_col: str = "foto_mes") -> pl.DataFrame:
         "Visa_status": [0.2962, -0.5178],
         "cpayroll_trx": [-0.4514, -0.3249],
         "mrentabilidad_annual_lag_1": [-0.1498, -0.8664],
-        "Visa_fechalta_lag_2": [0.1278, -0.0956],
-        "Master_refinanciacion_limite": [0.0197, -0.0956],
+        "Visa_fechaalta_lag_2": [0.1278, -0.0956],
+        "Master_mfinanciacion_limite": [0.0197, -0.0956],
     }
 
     vars_ppr = list(alpha.keys())
