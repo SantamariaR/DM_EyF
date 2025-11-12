@@ -118,20 +118,20 @@ def evaluamos_en_predict_zlightgbm(df,n_canarios:int) -> dict:
         
         # ✅ CORRECCIÓN: Réplica exacta del comportamiento de R
         # En R: predict(modelo_final, data.matrix(dfuture[, campos_buenos, with= FALSE]))
-        X_test_matrix = X_test.values if hasattr(X_test, 'values') else X_test
+        #X_test_matrix = X_test.values if hasattr(X_test, 'values') else X_test
         
         # Opción 1: Probabilidades (como en R)
-        y_pred_proba_single = model.predict(X_test_matrix, raw_score=False)
+        y_pred_proba_single =  abs(model.predict(X_test))
         
         # Debugging de las predicciones
         logger.info(f"Rango predicciones modelo {i+1}: [{y_pred_proba_single.min():.4f}, {y_pred_proba_single.max():.4f}]")
         logger.info(f"Predicciones modelo {i+1} (primeros 5): {[f'{x:.4f}' for x in y_pred_proba_single[:5]]}")
         
-        # Verificar si hay valores fuera de [0,1]
-        if y_pred_proba_single.min() < 0 or y_pred_proba_single.max() > 1:
-            logger.warning(f"⚠️ Modelo {i+1} tiene predicciones fuera de [0,1]")
-            # Aplicar sigmoid si es necesario (pero raw_score=False debería evitarlo)
-            y_pred_proba_single = 1 / (1 + np.exp(-y_pred_proba_single))
+#        # Verificar si hay valores fuera de [0,1]
+#        if y_pred_proba_single.min() < 0 or y_pred_proba_single.max() > 1:
+#            logger.warning(f"⚠️ Modelo {i+1} tiene predicciones fuera de [0,1]")
+#            # Aplicar sigmoid si es necesario (pero raw_score=False debería evitarlo)
+#            y_pred_proba_single = 1 / (1 + np.exp(-y_pred_proba_single))
         
         predicciones_test.append(y_pred_proba_single)
 
