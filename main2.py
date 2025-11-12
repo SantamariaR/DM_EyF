@@ -67,6 +67,10 @@ def main2():
     df = feature_engineering_lag(df, columnas_lag, cant_lag=cant_lag)
     df = feature_engineering_delta_lag(df, columnas_lag, cant_lag=cant_lag)
     
+    
+    # Hacemos un RF para agregar variables
+    df = AgregaVarRandomForest(df)
+    
     logger.info(f"DataFrame final con {len(df.columns)} columnas después de feature engineering")
     
     
