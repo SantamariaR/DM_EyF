@@ -155,6 +155,8 @@ def PPR(dataset: pl.DataFrame, foto_mes_col: str = "foto_mes") -> pl.DataFrame:
     - Escala las variables numéricas por media y desvío estándar dentro de cada `foto_mes`
     - Agrega columnas 'ppr_term_1' y 'ppr_term_2'
     """
+    
+    logger.info("Inicio del Cálculo de las variables con PPR")
 
     alpha = {
         "ctrx_quarter": [-0.5451, -0.6825],
@@ -198,5 +200,7 @@ def PPR(dataset: pl.DataFrame, foto_mes_col: str = "foto_mes") -> pl.DataFrame:
 
     # 5️⃣ Agregar al dataset original
     dataset_out = dataset.hstack(df_ppr)
+    
+    logger.info("Fin del Cálculo de las variables con PPR")
 
     return dataset_out
