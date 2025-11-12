@@ -7,6 +7,8 @@ PARAM <- list()
 PARAM$experimento <- "exp40"
 PARAM$semilla_primigenia <- 100129
 
+BUCKET_NAME <- "/home/rami_santamaria92/buckets/b1"
+
 Sys.time()
 
 # Instalar data.table si no está disponible
@@ -90,7 +92,7 @@ setorder(dt_transposed, foto_mes)
 print(dt_transposed)
 flush.console()
 
-setwd("exp")
+setwd(BUCKET_NAME+"/exp")
 experimento_folder <- PARAM$experimento
 dir.create(experimento_folder, showWarnings=FALSE)
 setwd( paste0(experimento_folder))
