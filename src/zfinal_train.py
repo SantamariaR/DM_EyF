@@ -51,7 +51,7 @@ def evaluamos_en_predict_zlightgbm(df,n_canarios:int) -> dict:
     logger.info("=== EVALUACIÓN EN CONJUNTO DE PREDICCIÓN ===")
     
     # Períodos de evaluación
-    periodos_entrenamiento = MES_TRAIN + MES_VALIDACION
+    periodos_entrenamiento = MES_TRAIN + [202103]+ MES_VALIDACION
     periodo_test = MES_TEST
     frac = UNDERSUMPLING
         
