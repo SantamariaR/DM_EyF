@@ -84,7 +84,7 @@ def main2():
     logger.info(f"Número de canaritos añadidos: {n_canarios}")
     
     logger.info(f"Número de features seleccionadas")    
-    df = seleccionar_variables_por_canaritos(modelo_canaritos_features,porcentaje_umbral=0.6,df=df)
+    df = seleccionar_variables_por_canaritos(modelo_canaritos_features,porcentaje_umbral=0.8,df=df)
     logger.info(f"DataFrame final con {len(df.columns)} columnas después de selección por canaritos")
     
     # Ahora agregamos los canaritos que hace falta para lightgbm
