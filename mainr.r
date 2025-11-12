@@ -7,7 +7,15 @@ PARAM <- list()
 PARAM$experimento <- "exp40"
 PARAM$semilla_primigenia <- 100129
 
-BUCKET_NAME <- "/home/rami_santamaria92/buckets/b1"
+
+setwd("/content/buckets/b1/exp")
+experimento_folder <- PARAM$experimento
+dir.create(experimento_folder, showWarnings=FALSE)
+setwd( paste0("/content/buckets/b1/exp/", experimento_folder ))
+     
+
+
+#BUCKET_NAME <- "/home/rami_santamaria92/buckets/b1"
 
 Sys.time()
 
@@ -92,10 +100,10 @@ setorder(dt_transposed, foto_mes)
 print(dt_transposed)
 flush.console()
 
-setwd(BUCKET_NAME+"/exp")
-experimento_folder <- PARAM$experimento
-dir.create(experimento_folder, showWarnings=FALSE)
-setwd( paste0(experimento_folder))
+#setwd(BUCKET_NAME+"/exp")
+#experimento_folder <- PARAM$experimento
+#dir.create(experimento_folder, showWarnings=FALSE)
+#setwd( paste0(experimento_folder))
 
 # --- Reparación de atributos dañados (todos 0s en un mes) ---
 # Se deben reparar los atributos del dataset que para un cierto mes TODOS sus valores son cero.
