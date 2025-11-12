@@ -391,6 +391,8 @@ def ajustar_mediana_6_meses(df, columnas_ajustar, fecha_objetivo=202106, meses_a
     Ajusta las variables basándose en la mediana de los últimos 6 meses.
     """
     # Calcular fecha límite para los 6 meses hacia atrás
+    logger.info(f"Inicio ajuste de mediana a 6 meses sobre el mes {fecha_objetivo}")
+    
     fecha_limite = fecha_objetivo - meses_atras
     
     for var in columnas_ajustar:
@@ -417,5 +419,7 @@ def ajustar_mediana_6_meses(df, columnas_ajustar, fecha_objetivo=202106, meses_a
                     .otherwise(pl.col(var))
                     .alias(var)
                 )
+                
+    logger.info(f"Fin ajuste de mediana a 6 meses sobre el mes {fecha_objetivo}")
     
     return df

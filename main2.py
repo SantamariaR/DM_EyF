@@ -42,7 +42,7 @@ def main2():
     
     # Intento arreglar datadrift
 #    df = estandarizar_variables_monetarias_polars(df)
-    df = convertir_ceros_a_nan(df, columna_mes='foto_mes', umbral_ceros=1.0)
+    #df = convertir_ceros_a_nan(df, columna_mes='foto_mes', umbral_ceros=1.0)
 #   Tiro algunas columnas que cambien tendencia
     columnas_a_eliminar = ["cprestamos_personales","mprestamos_personales"]
     columnas_base = [col for col in df.columns if col not in columnas_a_eliminar]
@@ -68,9 +68,9 @@ def main2():
     df = feature_engineering_delta_lag(df, columnas_lag, cant_lag=cant_lag)
     
     # Corregimos los meses 06 y 08
-    df = ajustar_mediana_6_meses(df, columnas_lag, fecha_objetivo=202108, meses_atras=6)
+    #df = ajustar_mediana_6_meses(df, columnas_lag, fecha_objetivo=202108, meses_atras=6)
     
-    df = ajustar_mediana_6_meses(df, columnas_lag, fecha_objetivo=202106, meses_atras=6)
+    #df = ajustar_mediana_6_meses(df, columnas_lag, fecha_objetivo=202106, meses_atras=6)
     
     # Hacemos un RF para agregar variables
     df = AgregaVarRandomForest(df)
