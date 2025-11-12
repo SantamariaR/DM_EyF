@@ -162,12 +162,12 @@ def PPR(dataset: pl.DataFrame, foto_mes_col: str = "foto_mes") -> pl.DataFrame:
         "ctrx_quarter": [-0.5451, -0.6825],
         "mcuentas_saldo": [-0.0264, -0.8541],
         "mpasivos_margen": [-0.1729, -0.0899],
-        "cdescubierto_preacordado_deltal": [-0.6106, -0.1276],
-        "rentabilidad_anual_lag2": [0.0951, 0.3177],
+        "cdescubierto_preacordado_delta_lag_1": [-0.6106, -0.1276],
+        "rentabilidad_anual_lag_2": [0.0951, 0.3177],
         "Visa_status": [0.2962, -0.5178],
         "cpayroll_trx": [-0.4514, -0.3249],
-        "rentabilidad_anual_lag1": [-0.1498, -0.8664],
-        "Visa_fechalta_lag2": [0.1278, -0.0956],
+        "rentabilidad_anual_lag_1": [-0.1498, -0.8664],
+        "Visa_fechalta_lag_2": [0.1278, -0.0956],
         "Master_refinanciacion_limite": [0.0197, -0.0956],
     }
 
