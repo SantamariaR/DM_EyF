@@ -72,11 +72,24 @@ def main2():
     #04 Convertir clase ternaria a target binario
     df = convertir_clase_ternaria_a_target(df)    
     
-    #Agrego canaritos, un 50% más de canaritos que de variables reales(buscar óptimos)
-    df,n_canarios = add_canaritos(df, seed=SEMILLA[0], canaritos_ratio=0.14)
+   #03 Análisis e features sobre la clase ternaria(la idea es usar canaritos para podar features)
+    logger.info("=== ANÁLISIS DE FEATURES CON CANARITOS ===")
+    df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
+    #logger.info(f"Número de canaritos añadidos para análisis: {n_canarios}")
+   
+    modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
+    logger.info("Análisis de features con canaritos completado.")
     
     logger.info(f"DataFrame con canaritos, total columnas: {len(df.columns)}")
     logger.info(f"Número de canaritos añadidos: {n_canarios}")
+    
+    logger.info(f"Número de features seleccionadas")    
+    df = seleccionar_variables_por_canaritos(modelo_canaritos_features,porcentaje_umbral=0.6,df=df)
+    logger.info(f"DataFrame final con {len(df.columns)} columnas después de selección por canaritos")
+    
+    # Ahora agregamos los canaritos que hace falta para lightgbm
+    df,n_canarios = add_canaritos(df,canaritos_ratio=0.14)
+    logger.info(f"DataFrame para entrenamiento con zlighgbm:{df.columns}")
     
     # Entrenamiento y evaluación final en modo predict
     df = evaluamos_en_predict_zlightgbm(df,n_canarios=n_canarios)
