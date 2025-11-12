@@ -13,7 +13,7 @@ from src.optimization import optimizar,evaluar_en_test,guardar_resultados_test
 from src.best_params import cargar_mejores_hiperparametros
 from src.final_training import evaluar_en_predict
 from src.output_manager import guardar_resultados_predict
-from src.cleaning_features import train_overfit_lgbm_features, add_canaritos, seleccionar_variables_por_canaritos,estandarizar_variables_monetarias_polars,convertir_ceros_a_nan
+from src.cleaning_features import train_overfit_lgbm_features, add_canaritos, seleccionar_variables_por_canaritos,estandarizar_variables_monetarias_polars,convertir_ceros_a_nan,ajustar_mediana_6_meses
 from src.zfinal_train import evaluamos_en_predict_zlightgbm
 
 # Nombre del log fijo en lugar de uno con timestamp
@@ -67,6 +67,10 @@ def main2():
     df = feature_engineering_lag(df, columnas_lag, cant_lag=cant_lag)
     df = feature_engineering_delta_lag(df, columnas_lag, cant_lag=cant_lag)
     
+    # Corregimos los meses 06 y 08
+    df = ajustar_mediana_6_meses(df, columnas_lag, fecha_objetivo=202108, meses_atras=6)
+    
+    df = ajustar_mediana_6_meses(df, columnas_lag, fecha_objetivo=202106, meses_atras=6)
     
     # Hacemos un RF para agregar variables
     df = AgregaVarRandomForest(df)
@@ -86,11 +90,11 @@ def main2():
     #logger.info(f"Número de canaritos añadidos: {n_canarios}")
     
     # Cargo si es necesario las features importantes según canaritos
-    #modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp42_feature_importance.csv")
+    modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp44_feature_importance.csv")
     #print(modelo_canaritos_features)
     
     #logger.info(f"Número de features seleccionadas")    
-    #df = seleccionar_variables_por_canaritos(modelo_canaritos_features,porcentaje_umbral=0.8,df=df)
+    df = seleccionar_variables_por_canaritos(modelo_canaritos_features,porcentaje_umbral=0.8,df=df)
     #logger.info(f"DataFrame final con {len(df.columns)} columnas después de selección por canaritos")
     
     # Ahora agregamos los canaritos que hace falta para lightgbm
