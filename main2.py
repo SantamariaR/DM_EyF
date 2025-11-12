@@ -69,8 +69,6 @@ def main2():
     
     logger.info(f"DataFrame final con {len(df.columns)} columnas después de feature engineering")
     
-    #04 Convertir clase ternaria a target binario
-    df = convertir_clase_ternaria_a_target(df)    
     
    #03 Análisis e features sobre la clase ternaria(la idea es usar canaritos para podar features)
     logger.info("=== ANÁLISIS DE FEATURES CON CANARITOS ===")
@@ -90,6 +88,9 @@ def main2():
     # Ahora agregamos los canaritos que hace falta para lightgbm
     df,n_canarios = add_canaritos(df,canaritos_ratio=0.14)
     logger.info(f"DataFrame para entrenamiento con zlighgbm:{df.columns}")
+
+    #04 Convertir clase ternaria a target binario
+    df = convertir_clase_ternaria_a_target(df)    
     
     # Entrenamiento y evaluación final en modo predict
     df = evaluamos_en_predict_zlightgbm(df,n_canarios=n_canarios)
