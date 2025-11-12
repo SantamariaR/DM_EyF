@@ -64,9 +64,9 @@ def main():
     columnas_lag = [col for col in df.columns if col not in excluir]
     
     # Corregimos los meses 06 y 08
-    df = ajustar_mediana_6_meses(df, columnas_lag, fecha_objetivo=202106, meses_atras=6)
+    #df = ajustar_mediana_6_meses(df, columnas_lag, fecha_objetivo=202106, meses_atras=6)
 
-    df = ajustar_mediana_6_meses(df, columnas_lag, fecha_objetivo=202108, meses_atras=6)    
+    #df = ajustar_mediana_6_meses(df, columnas_lag, fecha_objetivo=202108, meses_atras=6)    
     
     # Creamos lags de las variables
     cant_lag = 2
@@ -74,7 +74,7 @@ def main():
     df = feature_engineering_delta_lag(df, columnas_lag, cant_lag=cant_lag)
     
     # Intentamos generar features con PPR
-    #df = PPR(df)
+    df = PPR(df)
     
     # Hacemos un RF para agregar variables
     df = AgregaVarRandomForest(df)
@@ -82,15 +82,15 @@ def main():
     
    #03 Análisis e features sobre la clase ternaria(la idea es usar canaritos para podar features)
     logger.info("=== ANÁLISIS DE FEATURES CON CANARITOS ===")
-    #df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
+    df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
     #logger.info(f"Número de canaritos añadidos para análisis: {n_canarios}")
    
-    #modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
+    modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
     logger.info("Análisis de features con canaritos completado.")
    
    
     # Cargo si es necesario las features importantes según canaritos
-    modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp33_feature_importance.csv")
+    #modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp33_feature_importance.csv")
     #print(modelo_canaritos_features)
     
     
@@ -102,7 +102,7 @@ def main():
     df = convertir_clase_ternaria_a_target(df)
     
     #05 . Ejecutar optimización (función simple)
-    study = optimizar(df, n_trials= 30,undersampling=UNDERSUMPLING) 
+    study = optimizar(df, n_trials= 50,undersampling=UNDERSUMPLING) 
     
     #06. Análisis adicional
     logger.info("=== ANÁLISIS DE RESULTADOS ===")
