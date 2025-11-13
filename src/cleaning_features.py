@@ -591,7 +591,11 @@ def ajustar_por_inflacion(df: pl.DataFrame) -> pl.DataFrame:
         ]
     }
 
-    df_ipc = pl.DataFrame(ipc_dict)
+    # Especificar esquema explícitamente
+    df_ipc = pl.DataFrame(ipc_dict, schema={
+        'foto_mes': pl.Int64,
+        'ipc': pl.Float64
+    })
 
     # Join por mes
     df = df.join(df_ipc, on="foto_mes", how="left")
