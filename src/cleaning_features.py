@@ -143,8 +143,8 @@ def train_overfit_lgbm_features(df: pl.DataFrame, objective: str = 'binary', und
 #    df_neg = df_train.filter(pl.col("clase_ternaria") == "CONTINUA")
     
     # Separar clases
-    df_pos = df_train.filter(pl.col("clase_ternaria").is_in(["BAJA+2"]))
-    df_neg = df_train.filter(pl.col("clase_ternaria").is_in(["BAJA+1", "CONTINUA"]))
+    df_pos = df_train.filter(pl.col("clase_ternaria").is_in(["BAJA+2","BAJA+1"]))
+    df_neg = df_train.filter(pl.col("clase_ternaria").is_in(["CONTINUA"]))
 
     # Polars no tiene sample(frac=...), pero podemos calcular cuántas filas queremos
     n_sample = int(df_neg.height * undersampling)
@@ -159,7 +159,7 @@ def train_overfit_lgbm_features(df: pl.DataFrame, objective: str = 'binary', und
     # Preparar dataset para LightGBM, entrenar y testear
     # ==================================================
     # Mapeo clase_ternaria a numérico
-    mapping = {'CONTINUA': 0, 'BAJA+1': 0, 'BAJA+2': 1}
+    mapping = {'CONTINUA': 0, 'BAJA+1': 1, 'BAJA+2': 1}
     
     X = df_sub.drop(["clase_ternaria","numero_de_cliente"]).to_pandas()
     y = df_sub["clase_ternaria"].to_pandas().map(mapping)
@@ -531,52 +531,41 @@ def ajustar_mediana_6_meses(df, columnas_ajustar, fecha_objetivo=202106, meses_a
 #    return pl.concat(dfs_imputados)
 
 
-def normalizar_clientes_percentil_signo(
-    dataset: pl.DataFrame,
-    id_col: str = "numero_de_cliente",
-    mes_col: str = "foto_mes"
-) -> pl.DataFrame:
+def normalizar_clientes_percentil_signo_historico(df: pl.DataFrame) -> pl.DataFrame:
     """
-    Normaliza columnas temporales ('m', 'Master_m', 'Visa_m') por cliente,
-    tomando como referencia el percentil 95 del valor absoluto del último mes
-    disponible del cliente. Mantiene el signo original.
+    Estandariza las columnas mensuales por cliente usando el percentil 95 histórico
+    del valor absoluto (sin mirar hacia el futuro) y mantiene el signo original.
+    Reemplaza las columnas originales por sus versiones normalizadas.
     """
     
-    # --- Seleccionar columnas de interés ---
-    cols_temporales = [
-        c for c in dataset.columns
-        if c.startswith("m") or c.startswith("Master_m") or c.startswith("Visa_m")
-    ]
+    columnas_mensuales = [c for c in df.columns if c.startswith(("m", "Master_m", "Visa_m"))]
+    df = df.sort(["cliente_id", "mes"])
     
-    if not cols_temporales:
-        raise ValueError("No se encontraron columnas que empiecen con 'm', 'Master_m' o 'Visa_m'")
-    
-    # --- Función auxiliar para normalizar un cliente ---
-    def normalizar_cliente(df_cliente: pl.DataFrame) -> pl.DataFrame:
-        mes_ref = df_cliente[mes_col].max()
-        df_mes_ref = df_cliente.filter(pl.col(mes_col) == mes_ref)
-        
-        # Calcular percentil 95 sobre el valor absoluto
-        percentiles = (
-            df_mes_ref.select([
-                pl.col(c).abs().quantile(0.95).alias(c) for c in cols_temporales
-            ])
-            .to_dict(as_series=False)
-        )
-        
-        # Definir escala (evita divisiones por cero o None)
-        escala = {c: (percentiles[c][0] if percentiles[c][0] not in [0, None] else 1)
-                  for c in cols_temporales}
-        
-        # Normalizar manteniendo el signo
-        for c in cols_temporales:
-            df_cliente = df_cliente.with_columns(
-                (pl.col(c) / escala[c]).alias(c)
+    for col in columnas_mensuales:
+        # Percentil 95 histórico del valor absoluto
+        p95_hist = (
+            df.select(["cliente_id", "mes", col])
+            .with_columns(
+                pl.col(col)
+                .abs()
+                .rolling_quantile(
+                    quantile=0.95,
+                    window_size=None,   # usa todo el histórico hasta ese mes
+                    min_periods=1,
+                    by="cliente_id"
+                )
+                .alias("p95_hist")
             )
-        
-        return df_cliente
+        )
+
+        # Join con el DataFrame original
+        df = df.join(p95_hist.select(["cliente_id", "mes", "p95_hist"]), on=["cliente_id", "mes"], how="left")
+
+        # Estandarizar respetando el signo
+        df = df.with_columns(
+            (pl.col(col).sign() * pl.col(col).abs() / pl.col("p95_hist")).alias(col)
+        )
+
+        df = df.drop("p95_hist")
     
-    # --- Aplicar por cliente ---
-    df_normalizado = dataset.group_by(id_col, maintain_order=True).map_groups(normalizar_cliente)
-    
-    return df_normalizado
+    return df

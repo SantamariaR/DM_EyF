@@ -13,7 +13,7 @@ from src.optimization import optimizar,evaluar_en_test,guardar_resultados_test
 from src.best_params import cargar_mejores_hiperparametros
 from src.final_training import evaluar_en_predict
 from src.output_manager import guardar_resultados_predict
-from src.cleaning_features import train_overfit_lgbm_features, add_canaritos, seleccionar_variables_por_canaritos,normalizar_clientes_percentil_signo
+from src.cleaning_features import train_overfit_lgbm_features, add_canaritos, seleccionar_variables_por_canaritos,normalizar_clientes_percentil_signo_historico
 from src.zfinal_train import evaluamos_en_predict_zlightgbm
 
 # Nombre del log fijo en lugar de uno con timestamp
@@ -54,7 +54,7 @@ def main2():
     logger.info(f"Grupos de clase ternaria por mes:{contar_por_grupos(df)}")
     
     # Intento de arrglo de columnas con todos ceros
-    df = normalizar_clientes_percentil_signo(df)
+    df = normalizar_clientes_percentil_signo_historico(df)
     
         
     #02 Feature Engineering - Lags
