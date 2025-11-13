@@ -13,7 +13,7 @@ from src.optimization import optimizar,evaluar_en_test,guardar_resultados_test
 from src.best_params import cargar_mejores_hiperparametros
 from src.final_training import evaluar_en_predict
 from src.output_manager import guardar_resultados_predict
-from src.cleaning_features import train_overfit_lgbm_features, add_canaritos, seleccionar_variables_por_canaritos,normalizar_clientes_percentil_signo_historico
+from src.cleaning_features import train_overfit_lgbm_features, add_canaritos, seleccionar_variables_por_canaritos,convertir_todo_cero_a_nan
 from src.zfinal_train import evaluamos_en_predict_zlightgbm
 
 # Nombre del log fijo en lugar de uno con timestamp
@@ -40,21 +40,18 @@ def main2():
     df = cargar_datos(path_data)
     logger.info(f"Cargado el dataset:{path_data}")
     
-    # Intento arreglar datadrift
-#    df = estandarizar_variables_monetarias_polars(df)
-    #df = convertir_ceros_a_nan(df, columna_mes='foto_mes', umbral_ceros=1.0)
+    
     #Tiro algunas columnas que cambien tendencia
     columnas_a_eliminar = ["cprestamos_personales","mprestamos_personales"]
     columnas_base = [col for col in df.columns if col not in columnas_a_eliminar]
     df = df.select(columnas_base)
-    
+
+    # Intento arreglar datadrift
+    #df = convertir_todo_cero_a_nan(df)    
    
     #01 Clase ternaria
     df = calcular_clase_ternaria(df)
     logger.info(f"Grupos de clase ternaria por mes:{contar_por_grupos(df)}")
-    
-    # Intento de arrglo de columnas con todos ceros
-    df = normalizar_clientes_percentil_signo_historico(df)
     
         
     #02 Feature Engineering - Lags
@@ -81,17 +78,17 @@ def main2():
     
    #03 Análisis e features sobre la clase ternaria(la idea es usar canaritos para podar features)
     logger.info("=== ANÁLISIS DE FEATURES CON CANARITOS ===")
-    df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
-    logger.info(f"Número de canaritos añadidos para análisis: {n_canarios}")
+    #df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
+    #logger.info(f"Número de canaritos añadidos para análisis: {n_canarios}")
    
-    modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
-    logger.info("Análisis de features con canaritos completado.")
+    #modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
+    #logger.info("Análisis de features con canaritos completado.")
     
-    logger.info(f"DataFrame con canaritos, total columnas: {len(df.columns)}")
-    logger.info(f"Número de canaritos añadidos: {n_canarios}")
+    #logger.info(f"DataFrame con canaritos, total columnas: {len(df.columns)}")
+    #logger.info(f"Número de canaritos añadidos: {n_canarios}")
     
     # Cargo si es necesario las features importantes según canaritos
-    #modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp48_feature_importance.csv")
+    modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp48_feature_importance.csv")
     #print(modelo_canaritos_features)
     
     logger.info(f"Número de features seleccionadas")    
@@ -99,7 +96,7 @@ def main2():
     logger.info(f"DataFrame final con {len(df.columns)} columnas después de selección por canaritos")
     
     # Ahora agregamos los canaritos que hace falta para lightgbm
-    df,n_canarios = add_canaritos(df,canaritos_ratio=0.2)
+    df,n_canarios = add_canaritos(df,canaritos_ratio=0.05)
     logger.info(f"DataFrame para entrenamiento con zlighgbm:{df.columns}")
 
     #04 Convertir clase ternaria a target binario

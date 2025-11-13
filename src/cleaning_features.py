@@ -353,35 +353,41 @@ def estandarizar_variables_monetarias_polars(df):
     return df_estandarizado
 
 
-def convertir_ceros_a_nan(df, columna_mes='foto_mes', umbral_ceros=0.8):
+def convertir_todo_cero_a_nan(
+    df: pl.DataFrame,
+    columna_mes: str = "foto_mes"
+) -> pl.DataFrame:
     """
-    Versión ultra simple - evita errores de nulos
+    Si toda una columna numérica es cero (o cero/nula) en un mes determinado,
+    reemplaza todos sus valores por None (NaN).
     """
     meses_unicos = df[columna_mes].unique().sort()
-    
     resultados = []
-    
+
     for mes in meses_unicos:
         df_mes = df.filter(pl.col(columna_mes) == mes)
-        
-        # Para cada columna numérica, verificar si conviene convertir
+        df_out = df_mes.clone()
+
         for col in df_mes.columns:
-            if col != columna_mes and df_mes[col].dtype in [pl.Int64, pl.Float64]:
-                # Contar ceros de forma segura
-                count_ceros = df_mes.filter(pl.col(col) == 0).height
-                count_total = df_mes.filter(pl.col(col).is_not_null()).height
-                
-                if count_total > 0 and (count_ceros / count_total) > umbral_ceros:
-                    df_mes = df_mes.with_columns(
-                        pl.when(pl.col(col) == 0)
-                        .then(None)
-                        .otherwise(pl.col(col))
-                        .alias(col)
-                    )
-        
-        resultados.append(df_mes)
-    
-    return pl.concat(resultados)
+            if col == columna_mes:
+                continue
+            if df_mes[col].dtype not in [pl.Int64, pl.Float64]:
+                continue
+
+            # Verificar si todos los valores son cero o nulos
+            todos_cero = df_mes.filter(
+                (pl.col(col) != 0) & (pl.col(col).is_not_null())
+            ).height == 0
+
+            if todos_cero:
+                # Reemplazar todos los valores por None
+                df_out = df_out.with_columns(
+                    pl.lit(None).alias(col)
+                )
+
+        resultados.append(df_out)
+
+    return pl.concat(resultados).sort(columna_mes)
 
 
 
