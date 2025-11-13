@@ -477,3 +477,54 @@ def reemplazar_columnas_todo_cero_fila(df: pl.DataFrame, columna_mes: str = "fot
                 )
 
     return df_resultado
+
+
+def imputar_con_spline(df: pl.DataFrame, columna_mes: str = "foto_mes", columna_id: str = "customer_id") -> pl.DataFrame:
+    """
+    Si una columna numérica es completamente cero en un mes,
+    para cada cliente interpola con un spline usando los valores de meses vecinos.
+    """
+    df = df.sort([columna_id, columna_mes])
+    meses = sorted(df[columna_mes].unique().to_list())
+
+    columnas_numericas = [
+        c for c, t in zip(df.columns, df.dtypes)
+        if c not in (columna_mes, columna_id) and t in (pl.Float64, pl.Int64)
+    ]
+
+    df_resultado = df.clone()
+
+    # Detectar qué columnas tienen algún mes con todos ceros
+    columnas_a_tratar = []
+    for col in columnas_numericas:
+        for mes in meses:
+            if (df.filter(pl.col(columna_mes) == mes)[col] == 0).all():
+                columnas_a_tratar.append(col)
+                break  # ya sabemos que hay al menos un mes todo cero
+    columnas_a_tratar = list(set(columnas_a_tratar))
+
+    # Iterar por cliente
+    dfs_imputados = []
+
+    for cliente, df_cliente in df_resultado.group_by(columna_id, maintain_order=True):
+        df_cliente = df_cliente.sort(columna_mes)
+        mes_vals = df_cliente[columna_mes].to_numpy()
+
+        for col in columnas_a_tratar:
+            y = df_cliente[col].to_numpy().astype(float)
+
+            # Si hay valores distintos de cero, podemos ajustar spline
+            mascara_validos = y != 0
+            if mascara_validos.sum() >= 3:  # al menos 3 puntos para spline suave
+                try:
+                    spline = UnivariateSpline(mes_vals[mascara_validos], y[mascara_validos], s=0, k=2)
+                    y_imputado = spline(mes_vals)
+                    # Reemplazar solo donde y == 0
+                    y = np.where(y == 0, y_imputado, y)
+                except Exception:
+                    pass  # si hay algún error numérico, lo dejamos como está
+            df_cliente = df_cliente.with_columns(pl.Series(col, y))
+
+        dfs_imputados.append(df_cliente)
+
+    return pl.concat(dfs_imputados)

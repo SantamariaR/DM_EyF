@@ -48,12 +48,13 @@ def main2():
     columnas_base = [col for col in df.columns if col not in columnas_a_eliminar]
     df = df.select(columnas_base)
     
-    # Intento de arrglo de columnas con todos ceros
-    df = reemplazar_columnas_todo_cero_fila(df)
    
     #01 Clase ternaria
     df = calcular_clase_ternaria(df)
     logger.info(f"Grupos de clase ternaria por mes:{contar_por_grupos(df)}")
+    
+    # Intento de arrglo de columnas con todos ceros
+    df = reemplazar_columnas_todo_cero_fila(df)
     
         
     #02 Feature Engineering - Lags
