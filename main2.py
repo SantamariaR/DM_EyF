@@ -41,7 +41,7 @@ def main2():
     logger.info(f"Cargado el dataset:{path_data}")
     
     #Ajuste IPC
-    df = ajustar_por_inflacion(df)
+    #df = ajustar_por_inflacion(df)
         
     #Tiro algunas columnas que cambien tendencia
     columnas_a_eliminar = ["cprestamos_personales","mprestamos_personales"]
@@ -65,7 +65,7 @@ def main2():
     # Obtener columnas para aplicar lags
     columnas_lag = [col for col in df.columns if col not in excluir]
     
-    cant_lag = 2
+    cant_lag = 6
     df = feature_engineering_lag(df, columnas_lag, cant_lag=cant_lag)
     df = feature_engineering_delta_lag(df, columnas_lag, cant_lag=cant_lag)
     
@@ -80,17 +80,17 @@ def main2():
     
    #03 Análisis e features sobre la clase ternaria(la idea es usar canaritos para podar features)
     logger.info("=== ANÁLISIS DE FEATURES CON CANARITOS ===")
-    #df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
-    #logger.info(f"Número de canaritos añadidos para análisis: {n_canarios}")
+    df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
+    logger.info(f"Número de canaritos añadidos para análisis: {n_canarios}")
    
-    #modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
-    #logger.info("Análisis de features con canaritos completado.")
+    modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
+    logger.info("Análisis de features con canaritos completado.")
     
-    #logger.info(f"DataFrame con canaritos, total columnas: {len(df.columns)}")
-    #logger.info(f"Número de canaritos añadidos: {n_canarios}")
+    logger.info(f"DataFrame con canaritos, total columnas: {len(df.columns)}")
+    logger.info(f"Número de canaritos añadidos: {n_canarios}")
     
     # Cargo si es necesario las features importantes según canaritos
-    modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp48_feature_importance.csv")
+    #modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp48_feature_importance.csv")
     #print(modelo_canaritos_features)
     
     logger.info(f"Número de features seleccionadas")    
