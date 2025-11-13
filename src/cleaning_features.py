@@ -565,4 +565,51 @@ def normalizar_clientes_percentil_signo_historico(df: pl.DataFrame) -> pl.DataFr
     
     return df
 
+def ajustar_por_inflacion(df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Ajusta las columnas monetarias por inflación según el índice IPC histórico.
+    Las columnas afectadas son las que empiezan con 'm', 'Master_m' o 'Visa_m'.
+    """
+    
+    logger.info("Ajustamos por IPC")
+    
+    # Diccionario de IPC (enero 2019 = 1.0)
+    ipc_dict = {
+        'foto_mes': [
+            201901,201902,201903,201904,201905,201906,201907,201908,201909,201910,
+            201911,201912,202001,202002,202003,202004,202005,202006,202007,202008,
+            202009,202010,202011,202012,202101,202102,202103,202104,202105,202106,
+            202107,202108
+        ],
+        'ipc': [
+            1,1.03765622189957,1.04293020255778,1.04820418321598,1.05347816387418,
+            1.05875214453239,1.06402612519059,1.06930010584879,1.074574086507,
+            1.0798480671652,1.0851220478234,1.09039602848161,1.09567000913981,
+            1.10094398979801,1.10621797045622,1.11149195111442,1.11676593177262,
+            1.12203991243083,1.12731389308903,1.13258787374723,1.13786185440544,
+            1.14313583506364,1.14840981572184,1.15368379638005,1.15895777703825,
+            1.16423175769645,1.16950573835466,1.17477971901286,1.18005369967106,
+            1.18532768032927,1.19060166098747,1.19587564164567
+        ]
+    }
+    
+    # DataFrame con IPC
+    df_ipc = pl.DataFrame(ipc_dict)
+
+    # Join por foto_mes
+    df = df.join(df_ipc, on="foto_mes", how="left")
+
+    # Seleccionar columnas a ajustar
+    columnas_monetarias = [
+        c for c in df.columns if c.startswith(("m", "Master_m", "Visa_m"))
+    ]
+
+    # Ajustar cada columna
+    for col in columnas_monetarias:
+        df = df.with_columns((pl.col(col) / pl.col("ipc")).alias(col))
+
+    # Quitar la columna auxiliar
+    df = df.drop("ipc")
+
+    return df
 
