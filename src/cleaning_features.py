@@ -569,11 +569,9 @@ def ajustar_por_inflacion(df: pl.DataFrame) -> pl.DataFrame:
     """
     Ajusta las columnas monetarias por inflación según el índice IPC histórico.
     Las columnas afectadas son las que empiezan con 'm', 'Master_m' o 'Visa_m'.
+    Convierte automáticamente ints a floats para evitar errores de división.
     """
-    
-    logger.info("Ajustamos por IPC")
-    
-    # Diccionario de IPC (enero 2019 = 1.0)
+
     ipc_dict = {
         'foto_mes': [
             201901,201902,201903,201904,201905,201906,201907,201908,201909,201910,
@@ -592,23 +590,28 @@ def ajustar_por_inflacion(df: pl.DataFrame) -> pl.DataFrame:
             1.18532768032927,1.19060166098747,1.19587564164567
         ]
     }
-    
-    # DataFrame con IPC
-    df_ipc = pl.DataFrame(ipc_dict,infer_schema_length=10)
 
-    # Join por foto_mes
+    df_ipc = pl.DataFrame(ipc_dict)
+
+    # Join por mes
     df = df.join(df_ipc, on="foto_mes", how="left")
 
-    # Seleccionar columnas a ajustar
+    # Columnas a ajustar
     columnas_monetarias = [
         c for c in df.columns if c.startswith(("m", "Master_m", "Visa_m"))
     ]
 
-    # Ajustar cada columna
-    for col in columnas_monetarias:
-        df = df.with_columns((pl.col(col) / pl.col("ipc")).alias(col))
+    # Convertirlas a Float64 primero
+    df = df.with_columns([
+        pl.col(col).cast(pl.Float64).alias(col) for col in columnas_monetarias
+    ])
 
-    # Quitar la columna auxiliar
+    # Ajustar por inflación
+    df = df.with_columns([
+        (pl.col(col) / pl.col("ipc")).alias(col) for col in columnas_monetarias
+    ])
+
+    # Eliminar IPC
     df = df.drop("ipc")
 
     return df
