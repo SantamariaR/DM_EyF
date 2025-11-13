@@ -13,7 +13,7 @@ from src.optimization import optimizar,evaluar_en_test,guardar_resultados_test
 from src.best_params import cargar_mejores_hiperparametros
 from src.final_training import evaluar_en_predict
 from src.output_manager import guardar_resultados_predict
-from src.cleaning_features import train_overfit_lgbm_features, add_canaritos, seleccionar_variables_por_canaritos,imputar_con_spline
+from src.cleaning_features import train_overfit_lgbm_features, add_canaritos, seleccionar_variables_por_canaritos,normalizar_clientes_percentil_signo
 from src.zfinal_train import evaluamos_en_predict_zlightgbm
 
 # Nombre del log fijo en lugar de uno con timestamp
@@ -43,7 +43,7 @@ def main2():
     # Intento arreglar datadrift
 #    df = estandarizar_variables_monetarias_polars(df)
     #df = convertir_ceros_a_nan(df, columna_mes='foto_mes', umbral_ceros=1.0)
-#   Tiro algunas columnas que cambien tendencia
+    #Tiro algunas columnas que cambien tendencia
     columnas_a_eliminar = ["cprestamos_personales","mprestamos_personales"]
     columnas_base = [col for col in df.columns if col not in columnas_a_eliminar]
     df = df.select(columnas_base)
@@ -54,7 +54,7 @@ def main2():
     logger.info(f"Grupos de clase ternaria por mes:{contar_por_grupos(df)}")
     
     # Intento de arrglo de columnas con todos ceros
-    df = imputar_con_spline(df)
+    df = normalizar_clientes_percentil_signo(df)
     
         
     #02 Feature Engineering - Lags

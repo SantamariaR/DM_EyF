@@ -427,105 +427,156 @@ def ajustar_mediana_6_meses(df, columnas_ajustar, fecha_objetivo=202106, meses_a
 
 
 
-def reemplazar_columnas_todo_cero_fila(df: pl.DataFrame, columna_mes: str = "foto_mes", columna_id: str = "numero_de_cliente") -> pl.DataFrame:
-    """
-    Si una columna numérica es completamente cero en un mes,
-    reemplaza sus valores fila a fila por el promedio entre el valor del mes anterior y el posterior.
-    """
-    # Ordenar por id y mes
-    df = df.sort([columna_id, columna_mes])
-    meses = sorted(df[columna_mes].unique().to_list())
+#def reemplazar_columnas_todo_cero_fila(df: pl.DataFrame, columna_mes: str = "foto_mes", columna_id: str = "numero_de_cliente") -> pl.DataFrame:
+#    """
+#    Si una columna numérica es completamente cero en un mes,
+#    reemplaza sus valores fila a fila por el promedio entre el valor del mes anterior y el posterior.
+#    """
+#    # Ordenar por id y mes
+#    df = df.sort([columna_id, columna_mes])
+#    meses = sorted(df[columna_mes].unique().to_list())
+#
+#    columnas_numericas = [
+#        c for c, t in zip(df.columns, df.dtypes)
+#        if c not in (columna_mes, columna_id) and t in (pl.Float64, pl.Int64)
+#    ]
+#
+#    df_resultado = df.clone()
+#
+#    for i, mes in enumerate(meses):
+#        if i == 0 or i == len(meses) - 1:
+#            continue  # No se puede interpolar primer/último mes
+#
+#        df_mes = df.filter(pl.col(columna_mes) == mes)
+#        df_ant = df.filter(pl.col(columna_mes) == meses[i - 1])
+#        df_pos = df.filter(pl.col(columna_mes) == meses[i + 1])
+#
+#        for col in columnas_numericas:
+#            # Si toda la columna es cero en este mes
+#            if (df_mes[col] == 0).all():
+#                # Hacemos join por id con anterior y posterior
+#                df_join = (
+#                    df_mes.select(columna_id, columna_mes)
+#                    .join(df_ant.select([columna_id, col]).rename({col: "valor_ant"}), on=columna_id, how="left")
+#                    .join(df_pos.select([columna_id, col]).rename({col: "valor_pos"}), on=columna_id, how="left")
+#                    .with_columns(
+#                        ((pl.col("valor_ant") + pl.col("valor_pos")) / 2).alias(col)
+#                    )
+#                    .select([columna_id, col])
+#                )
+#
+#                # Actualizamos en df_resultado los valores del mes correspondiente
+#                df_resultado = (
+#                    df_resultado.join(df_join, on=columna_id, how="left", suffix="_nuevo")
+#                    .with_columns(
+#                        pl.when(pl.col(columna_mes) == mes)
+#                        .then(pl.col(f"{col}_nuevo"))
+#                        .otherwise(pl.col(col))
+#                        .alias(col)
+#                    )
+#                    .drop(f"{col}_nuevo")
+#                )
+#
+#    return df_resultado
 
-    columnas_numericas = [
-        c for c, t in zip(df.columns, df.dtypes)
-        if c not in (columna_mes, columna_id) and t in (pl.Float64, pl.Int64)
+
+#def imputar_con_spline(df: pl.DataFrame, columna_mes: str = "foto_mes", columna_id: str = "numero_de_cliente") -> pl.DataFrame:
+#    """
+#    Si una columna numérica es completamente cero en un mes,
+#    para cada cliente interpola con un spline usando los valores de meses vecinos.
+#    """
+#    df = df.sort([columna_id, columna_mes])
+#    meses = sorted(df[columna_mes].unique().to_list())
+#
+#    columnas_numericas = [
+#        c for c, t in zip(df.columns, df.dtypes)
+#        if c not in (columna_mes, columna_id) and t in (pl.Float64, pl.Int64)
+#    ]
+#
+#    df_resultado = df.clone()
+#
+#    # Detectar qué columnas tienen algún mes con todos ceros
+#    columnas_a_tratar = []
+#    for col in columnas_numericas:
+#        for mes in meses:
+#            if (df.filter(pl.col(columna_mes) == mes)[col] == 0).all():
+#                columnas_a_tratar.append(col)
+#                break  # ya sabemos que hay al menos un mes todo cero
+#    columnas_a_tratar = list(set(columnas_a_tratar))
+#
+#    # Iterar por cliente
+#    dfs_imputados = []
+#
+#    for cliente, df_cliente in df_resultado.group_by(columna_id, maintain_order=True):
+#        df_cliente = df_cliente.sort(columna_mes)
+#        mes_vals = df_cliente[columna_mes].to_numpy()
+#
+#        for col in columnas_a_tratar:
+#            y = df_cliente[col].to_numpy().astype(float)
+#
+#            # Si hay valores distintos de cero, podemos ajustar spline
+#            mascara_validos = y != 0
+#            if mascara_validos.sum() >= 3:  # al menos 3 puntos para spline suave
+#                try:
+#                    spline = interp.UnivariateSpline(mes_vals[mascara_validos], y[mascara_validos], s=0, k=2)
+#                    y_imputado = spline(mes_vals)
+#                    # Reemplazar solo donde y == 0
+#                    y = np.where(y == 0, y_imputado, y)
+#                except Exception:
+#                    pass  # si hay algún error numérico, lo dejamos como está
+#            df_cliente = df_cliente.with_columns(pl.Series(col, y))
+#
+#        dfs_imputados.append(df_cliente)
+#
+#    return pl.concat(dfs_imputados)
+
+
+def normalizar_clientes_percentil_signo(
+    dataset: pl.DataFrame,
+    id_col: str = "numero_de_cliente",
+    mes_col: str = "foto_mes"
+) -> pl.DataFrame:
+    """
+    Normaliza columnas temporales ('m', 'Master_m', 'Visa_m') por cliente,
+    tomando como referencia el percentil 95 del valor absoluto del último mes
+    disponible del cliente. Mantiene el signo original.
+    """
+    
+    # --- Seleccionar columnas de interés ---
+    cols_temporales = [
+        c for c in dataset.columns
+        if c.startswith("m") or c.startswith("Master_m") or c.startswith("Visa_m")
     ]
-
-    df_resultado = df.clone()
-
-    for i, mes in enumerate(meses):
-        if i == 0 or i == len(meses) - 1:
-            continue  # No se puede interpolar primer/último mes
-
-        df_mes = df.filter(pl.col(columna_mes) == mes)
-        df_ant = df.filter(pl.col(columna_mes) == meses[i - 1])
-        df_pos = df.filter(pl.col(columna_mes) == meses[i + 1])
-
-        for col in columnas_numericas:
-            # Si toda la columna es cero en este mes
-            if (df_mes[col] == 0).all():
-                # Hacemos join por id con anterior y posterior
-                df_join = (
-                    df_mes.select(columna_id, columna_mes)
-                    .join(df_ant.select([columna_id, col]).rename({col: "valor_ant"}), on=columna_id, how="left")
-                    .join(df_pos.select([columna_id, col]).rename({col: "valor_pos"}), on=columna_id, how="left")
-                    .with_columns(
-                        ((pl.col("valor_ant") + pl.col("valor_pos")) / 2).alias(col)
-                    )
-                    .select([columna_id, col])
-                )
-
-                # Actualizamos en df_resultado los valores del mes correspondiente
-                df_resultado = (
-                    df_resultado.join(df_join, on=columna_id, how="left", suffix="_nuevo")
-                    .with_columns(
-                        pl.when(pl.col(columna_mes) == mes)
-                        .then(pl.col(f"{col}_nuevo"))
-                        .otherwise(pl.col(col))
-                        .alias(col)
-                    )
-                    .drop(f"{col}_nuevo")
-                )
-
-    return df_resultado
-
-
-def imputar_con_spline(df: pl.DataFrame, columna_mes: str = "foto_mes", columna_id: str = "numero_de_cliente") -> pl.DataFrame:
-    """
-    Si una columna numérica es completamente cero en un mes,
-    para cada cliente interpola con un spline usando los valores de meses vecinos.
-    """
-    df = df.sort([columna_id, columna_mes])
-    meses = sorted(df[columna_mes].unique().to_list())
-
-    columnas_numericas = [
-        c for c, t in zip(df.columns, df.dtypes)
-        if c not in (columna_mes, columna_id) and t in (pl.Float64, pl.Int64)
-    ]
-
-    df_resultado = df.clone()
-
-    # Detectar qué columnas tienen algún mes con todos ceros
-    columnas_a_tratar = []
-    for col in columnas_numericas:
-        for mes in meses:
-            if (df.filter(pl.col(columna_mes) == mes)[col] == 0).all():
-                columnas_a_tratar.append(col)
-                break  # ya sabemos que hay al menos un mes todo cero
-    columnas_a_tratar = list(set(columnas_a_tratar))
-
-    # Iterar por cliente
-    dfs_imputados = []
-
-    for cliente, df_cliente in df_resultado.group_by(columna_id, maintain_order=True):
-        df_cliente = df_cliente.sort(columna_mes)
-        mes_vals = df_cliente[columna_mes].to_numpy()
-
-        for col in columnas_a_tratar:
-            y = df_cliente[col].to_numpy().astype(float)
-
-            # Si hay valores distintos de cero, podemos ajustar spline
-            mascara_validos = y != 0
-            if mascara_validos.sum() >= 3:  # al menos 3 puntos para spline suave
-                try:
-                    spline = interp.UnivariateSpline(mes_vals[mascara_validos], y[mascara_validos], s=0, k=2)
-                    y_imputado = spline(mes_vals)
-                    # Reemplazar solo donde y == 0
-                    y = np.where(y == 0, y_imputado, y)
-                except Exception:
-                    pass  # si hay algún error numérico, lo dejamos como está
-            df_cliente = df_cliente.with_columns(pl.Series(col, y))
-
-        dfs_imputados.append(df_cliente)
-
-    return pl.concat(dfs_imputados)
+    
+    if not cols_temporales:
+        raise ValueError("No se encontraron columnas que empiecen con 'm', 'Master_m' o 'Visa_m'")
+    
+    # --- Función auxiliar para normalizar un cliente ---
+    def normalizar_cliente(df_cliente: pl.DataFrame) -> pl.DataFrame:
+        mes_ref = df_cliente[mes_col].max()
+        df_mes_ref = df_cliente.filter(pl.col(mes_col) == mes_ref)
+        
+        # Calcular percentil 95 sobre el valor absoluto
+        percentiles = (
+            df_mes_ref.select([
+                pl.col(c).abs().quantile(0.95).alias(c) for c in cols_temporales
+            ])
+            .to_dict(as_series=False)
+        )
+        
+        # Definir escala (evita divisiones por cero o None)
+        escala = {c: (percentiles[c][0] if percentiles[c][0] not in [0, None] else 1)
+                  for c in cols_temporales}
+        
+        # Normalizar manteniendo el signo
+        for c in cols_temporales:
+            df_cliente = df_cliente.with_columns(
+                (pl.col(c) / escala[c]).alias(c)
+            )
+        
+        return df_cliente
+    
+    # --- Aplicar por cliente ---
+    df_normalizado = dataset.group_by(id_col, maintain_order=True).map_groups(normalizar_cliente)
+    
+    return df_normalizado
