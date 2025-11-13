@@ -9,6 +9,7 @@ from .config import MES_TRAIN, MES_VALIDACION, SEMILLA, BUCKET_NAME, STUDY_NAME
 from .gain_function import ganancia_evaluator_lgb
 import os
 import pandas as pd
+import scipy.interpolate as interp
 
 logger = logging.getLogger(__name__)
 
@@ -479,7 +480,7 @@ def reemplazar_columnas_todo_cero_fila(df: pl.DataFrame, columna_mes: str = "fot
     return df_resultado
 
 
-def imputar_con_spline(df: pl.DataFrame, columna_mes: str = "foto_mes", columna_id: str = "customer_id") -> pl.DataFrame:
+def imputar_con_spline(df: pl.DataFrame, columna_mes: str = "foto_mes", columna_id: str = "numero_de_cliente") -> pl.DataFrame:
     """
     Si una columna numérica es completamente cero en un mes,
     para cada cliente interpola con un spline usando los valores de meses vecinos.
@@ -517,7 +518,7 @@ def imputar_con_spline(df: pl.DataFrame, columna_mes: str = "foto_mes", columna_
             mascara_validos = y != 0
             if mascara_validos.sum() >= 3:  # al menos 3 puntos para spline suave
                 try:
-                    spline = UnivariateSpline(mes_vals[mascara_validos], y[mascara_validos], s=0, k=2)
+                    spline = interp.UnivariateSpline(mes_vals[mascara_validos], y[mascara_validos], s=0, k=2)
                     y_imputado = spline(mes_vals)
                     # Reemplazar solo donde y == 0
                     y = np.where(y == 0, y_imputado, y)
