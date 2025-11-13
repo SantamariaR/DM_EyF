@@ -539,12 +539,12 @@ def normalizar_clientes_percentil_signo_historico(df: pl.DataFrame) -> pl.DataFr
     """
     
     columnas_mensuales = [c for c in df.columns if c.startswith(("m", "Master_m", "Visa_m"))]
-    df = df.sort(["cliente_id", "mes"])
+    df = df.sort(["numero_de_cliente", "foto_mes"])
     
     for col in columnas_mensuales:
         # Percentil 95 histórico del valor absoluto
         p95_hist = (
-            df.select(["cliente_id", "mes", col])
+            df.select(["numero_de_cliente", "foto_mes", col])
             .with_columns(
                 pl.col(col)
                 .abs()
@@ -552,14 +552,14 @@ def normalizar_clientes_percentil_signo_historico(df: pl.DataFrame) -> pl.DataFr
                     quantile=0.95,
                     window_size=None,   # usa todo el histórico hasta ese mes
                     min_periods=1,
-                    by="cliente_id"
+                    by="numero_de_cliente"
                 )
                 .alias("p95_hist")
             )
         )
 
         # Join con el DataFrame original
-        df = df.join(p95_hist.select(["cliente_id", "mes", "p95_hist"]), on=["cliente_id", "mes"], how="left")
+        df = df.join(p95_hist.select(["numero_de_cliente", "foto_mes", "p95_hist"]), on=["numero_de_cliente", "foto_mes"], how="left")
 
         # Estandarizar respetando el signo
         df = df.with_columns(
