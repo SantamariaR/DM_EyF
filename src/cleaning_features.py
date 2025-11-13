@@ -542,13 +542,13 @@ def normalizar_clientes_percentil_signo_historico(df: pl.DataFrame) -> pl.DataFr
     df = df.sort(["numero_de_cliente", "foto_mes"])
 
     for col in columnas_mensuales:
-        # Percentil 95 histórico del valor absoluto hasta el mes actual
+        # Percentil 95 histórico acumulado (usa el máximo alcanzado hasta el mes actual)
         df = df.with_columns(
             pl.col(col)
             .abs()
             .quantile(0.95)
             .over("numero_de_cliente")
-            .cummax()
+            .cum_max()
             .alias(f"{col}_p95_hist")
         )
 
@@ -558,4 +558,5 @@ def normalizar_clientes_percentil_signo_historico(df: pl.DataFrame) -> pl.DataFr
         ).drop(f"{col}_p95_hist")
     
     return df
+
 
