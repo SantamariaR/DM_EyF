@@ -4,7 +4,7 @@ import numpy as np
 import logging
 from .gain_function import ganancia_evaluator_lgb, ganancia_evaluator_manual
 from .config import *
-from .gain_function import calcular_ganancia_acumulada
+from .gain_function import calcular_ganancia_acumulada,calcular_ganancia
 
 
 logger = logging.getLogger(__name__)
@@ -126,8 +126,10 @@ def evaluamos_en_predict_zlightgbm(df,n_canarios:int) -> dict:
         
         # Opción 1: Probabilidades (como en R)
         y_pred_proba_single =  abs(model.predict(X_test))
+        gan_y_pred = calcular_ganancia(y_test,y_pred_proba_single)
         
         # Debugging de las predicciones
+        logger.info(f"Ganancia promedio de la cresta {gan_y_pred}")
         logger.info(f"Rango predicciones modelo {i+1}: [{y_pred_proba_single.min():.4f}, {y_pred_proba_single.max():.4f}]")
         logger.info(f"Predicciones modelo {i+1} (primeros 5): {[f'{x:.4f}' for x in y_pred_proba_single[:5]]}")
         
