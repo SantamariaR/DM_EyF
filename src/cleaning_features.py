@@ -534,38 +534,28 @@ def ajustar_mediana_6_meses(df, columnas_ajustar, fecha_objetivo=202106, meses_a
 def normalizar_clientes_percentil_signo_historico(df: pl.DataFrame) -> pl.DataFrame:
     """
     Estandariza las columnas mensuales por cliente usando el percentil 95 histórico
-    del valor absoluto (sin mirar hacia el futuro) y mantiene el signo original.
+    (sin mirar hacia el futuro), manteniendo el signo.
     Reemplaza las columnas originales por sus versiones normalizadas.
     """
     
     columnas_mensuales = [c for c in df.columns if c.startswith(("m", "Master_m", "Visa_m"))]
     df = df.sort(["numero_de_cliente", "foto_mes"])
-    
-    for col in columnas_mensuales:
-        # Percentil 95 histórico del valor absoluto
-        p95_hist = (
-            df.select(["numero_de_cliente", "foto_mes", col])
-            .with_columns(
-                pl.col(col)
-                .abs()
-                .rolling_quantile(
-                    quantile=0.95,
-                    window_size=None,   # usa todo el histórico hasta ese mes
-                    min_periods=1,
-                    by="numero_de_cliente"
-                )
-                .alias("p95_hist")
-            )
-        )
 
-        # Join con el DataFrame original
-        df = df.join(p95_hist.select(["numero_de_cliente", "foto_mes", "p95_hist"]), on=["numero_de_cliente", "foto_mes"], how="left")
+    for col in columnas_mensuales:
+        # Percentil 95 histórico del valor absoluto hasta el mes actual
+        df = df.with_columns(
+            pl.col(col)
+            .abs()
+            .quantile(0.95)
+            .over("numero_de_cliente")
+            .cummax()
+            .alias(f"{col}_p95_hist")
+        )
 
         # Estandarizar respetando el signo
         df = df.with_columns(
-            (pl.col(col).sign() * pl.col(col).abs() / pl.col("p95_hist")).alias(col)
-        )
-
-        df = df.drop("p95_hist")
+            (pl.col(col).sign() * pl.col(col).abs() / pl.col(f"{col}_p95_hist")).alias(col)
+        ).drop(f"{col}_p95_hist")
     
     return df
+
