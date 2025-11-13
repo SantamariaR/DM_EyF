@@ -425,24 +425,26 @@ def ajustar_mediana_6_meses(df, columnas_ajustar, fecha_objetivo=202106, meses_a
     return df
 
 
-def reemplazar_columnas_todo_cero(df: pl.DataFrame, columna_mes: str = "foto_mes") -> pl.DataFrame:
+
+def reemplazar_columnas_todo_cero_fila(df: pl.DataFrame, columna_mes: str = "foto_mes", columna_id: str = "numero_de_cliente") -> pl.DataFrame:
     """
-    Si una columna numérica es completamente cero para un mes determinado,
-    la reemplaza por el promedio entre el valor de esa columna en el mes anterior y el posterior.
+    Si una columna numérica es completamente cero en un mes,
+    reemplaza sus valores fila a fila por el promedio entre el valor del mes anterior y el posterior.
     """
-    # Ordenar por mes
+    # Ordenar por id y mes
+    df = df.sort([columna_id, columna_mes])
     meses = sorted(df[columna_mes].unique().to_list())
+
     columnas_numericas = [
         c for c, t in zip(df.columns, df.dtypes)
-        if c != columna_mes and t in (pl.Float64, pl.Int64)
+        if c not in (columna_mes, columna_id) and t in (pl.Float64, pl.Int64)
     ]
 
     df_resultado = df.clone()
 
     for i, mes in enumerate(meses):
         if i == 0 or i == len(meses) - 1:
-            # No se puede interpolar para el primer ni último mes
-            continue
+            continue  # No se puede interpolar primer/último mes
 
         df_mes = df.filter(pl.col(columna_mes) == mes)
         df_ant = df.filter(pl.col(columna_mes) == meses[i - 1])
@@ -451,19 +453,27 @@ def reemplazar_columnas_todo_cero(df: pl.DataFrame, columna_mes: str = "foto_mes
         for col in columnas_numericas:
             # Si toda la columna es cero en este mes
             if (df_mes[col] == 0).all():
-                # Calcular promedio entre mes anterior y posterior
-                valor_anterior = df_ant[col].mean()
-                valor_posterior = df_pos[col].mean()
-                valor_interpolado = (valor_anterior + valor_posterior) / 2 if (
-                    valor_anterior is not None and valor_posterior is not None
-                ) else None
+                # Hacemos join por id con anterior y posterior
+                df_join = (
+                    df_mes.select(columna_id, columna_mes)
+                    .join(df_ant.select([columna_id, col]).rename({col: "valor_ant"}), on=columna_id, how="left")
+                    .join(df_pos.select([columna_id, col]).rename({col: "valor_pos"}), on=columna_id, how="left")
+                    .with_columns(
+                        ((pl.col("valor_ant") + pl.col("valor_pos")) / 2).alias(col)
+                    )
+                    .select([columna_id, col])
+                )
 
-                # Reemplazar por el valor interpolado
-                df_resultado = df_resultado.with_columns(
-                    pl.when(pl.col(columna_mes) == mes)
-                    .then(valor_interpolado)
-                    .otherwise(pl.col(col))
-                    .alias(col)
+                # Actualizamos en df_resultado los valores del mes correspondiente
+                df_resultado = (
+                    df_resultado.join(df_join, on=columna_id, how="left", suffix="_nuevo")
+                    .with_columns(
+                        pl.when(pl.col(columna_mes) == mes)
+                        .then(pl.col(f"{col}_nuevo"))
+                        .otherwise(pl.col(col))
+                        .alias(col)
+                    )
+                    .drop(f"{col}_nuevo")
                 )
 
     return df_resultado
