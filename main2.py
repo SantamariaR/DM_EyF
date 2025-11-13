@@ -13,7 +13,7 @@ from src.optimization import optimizar,evaluar_en_test,guardar_resultados_test
 from src.best_params import cargar_mejores_hiperparametros
 from src.final_training import evaluar_en_predict
 from src.output_manager import guardar_resultados_predict
-from src.cleaning_features import train_overfit_lgbm_features, add_canaritos, seleccionar_variables_por_canaritos,estandarizar_variables_monetarias_polars,convertir_ceros_a_nan,ajustar_mediana_6_meses
+from src.cleaning_features import train_overfit_lgbm_features, add_canaritos, seleccionar_variables_por_canaritos,reemplazar_columnas_todo_cero
 from src.zfinal_train import evaluamos_en_predict_zlightgbm
 
 # Nombre del log fijo en lugar de uno con timestamp
@@ -47,7 +47,9 @@ def main2():
     columnas_a_eliminar = ["cprestamos_personales","mprestamos_personales"]
     columnas_base = [col for col in df.columns if col not in columnas_a_eliminar]
     df = df.select(columnas_base)
-
+    
+    # Intento de arrglo de columnas con todos ceros
+    df = reemplazar_columnas_todo_cero(df)
    
     #01 Clase ternaria
     df = calcular_clase_ternaria(df)

@@ -423,3 +423,47 @@ def ajustar_mediana_6_meses(df, columnas_ajustar, fecha_objetivo=202106, meses_a
     logger.info(f"Fin ajuste de mediana a 6 meses sobre el mes {fecha_objetivo}")
     
     return df
+
+
+def reemplazar_columnas_todo_cero(df: pl.DataFrame, columna_mes: str = "foto_mes") -> pl.DataFrame:
+    """
+    Si una columna numérica es completamente cero para un mes determinado,
+    la reemplaza por el promedio entre el valor de esa columna en el mes anterior y el posterior.
+    """
+    # Ordenar por mes
+    meses = sorted(df[columna_mes].unique().to_list())
+    columnas_numericas = [
+        c for c, t in zip(df.columns, df.dtypes)
+        if c != columna_mes and t in (pl.Float64, pl.Int64)
+    ]
+
+    df_resultado = df.clone()
+
+    for i, mes in enumerate(meses):
+        if i == 0 or i == len(meses) - 1:
+            # No se puede interpolar para el primer ni último mes
+            continue
+
+        df_mes = df.filter(pl.col(columna_mes) == mes)
+        df_ant = df.filter(pl.col(columna_mes) == meses[i - 1])
+        df_pos = df.filter(pl.col(columna_mes) == meses[i + 1])
+
+        for col in columnas_numericas:
+            # Si toda la columna es cero en este mes
+            if (df_mes[col] == 0).all():
+                # Calcular promedio entre mes anterior y posterior
+                valor_anterior = df_ant[col].mean()
+                valor_posterior = df_pos[col].mean()
+                valor_interpolado = (valor_anterior + valor_posterior) / 2 if (
+                    valor_anterior is not None and valor_posterior is not None
+                ) else None
+
+                # Reemplazar por el valor interpolado
+                df_resultado = df_resultado.with_columns(
+                    pl.when(pl.col(columna_mes) == mes)
+                    .then(valor_interpolado)
+                    .otherwise(pl.col(col))
+                    .alias(col)
+                )
+
+    return df_resultado
