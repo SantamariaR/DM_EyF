@@ -101,7 +101,7 @@ def AgregaVarRandomForest(dataset: pl.DataFrame) -> pl.DataFrame:
 
     # Variable clase01
     dataset = dataset.with_columns(
-        pl.when(pl.col("clase_ternaria").is_in(["BAJA+2", "BAJA+1"]))
+        pl.when(pl.col("clase_ternaria").is_in(["BAJA+2"])) # LO CAMBIË PARA EL EXPERIMENTO 53
         .then(1)
         .otherwise(0)
         .alias("clase01")

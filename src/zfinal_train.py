@@ -82,7 +82,11 @@ def evaluamos_en_predict_zlightgbm(df,n_canarios:int) -> dict:
     # Preparar dataset para LightGBM, entrenar y testear
     # ==================================================
     X = df_sub.drop(["clase_ternaria", "clase_01"]).to_pandas()
-    y = df_sub["clase_01"].to_pandas()
+    #y = df_sub["clase_01"].to_pandas()
+    
+    # EXCLUSIVO PARA EXPERIMENTO 54
+    y = df_sub["clase_ternaria"].to_pandas()
+    y = (y == "BAJA+2").astype(int)
 
     dtrain = lgb.Dataset(X, label=y)
     
