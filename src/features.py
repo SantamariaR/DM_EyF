@@ -204,3 +204,17 @@ def PPR(dataset: pl.DataFrame, foto_mes_col: str = "foto_mes") -> pl.DataFrame:
     logger.info("Fin del Cálculo de las variables con PPR")
 
     return dataset_out
+
+def agregar_suma_m_visa_master(df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Agrega una columna 'suma_m_visa_master' con la suma horizontal
+    de todas las columnas que comienzan por 'm', 'Visa_m' o 'Master_m'.
+    """
+    cols = df.select(pl.col("^m") | pl.col("^Visa_m") | pl.col("^Master_m")).columns
+
+    if not cols:
+        return df
+
+    return df.with_columns(
+        pl.sum_horizontal([pl.col(c) for c in cols]).alias("suma_m_visa_master")
+    )
