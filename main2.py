@@ -63,7 +63,7 @@ def main2():
     excluir = ["numero_de_cliente", "foto_mes", "clase_ternaria"]
 
     # Agrego la suma de los montos
-    #df = agregar_suma_m_visa_master(df)
+    df = agregar_suma_m_visa_master(df)
     
     # Obtener columnas para aplicar lags
     columnas_lag = [col for col in df.columns if col not in excluir]
