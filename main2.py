@@ -98,7 +98,7 @@ def main2():
     logger.info(f"DataFrame final con {len(df.columns)} columnas después de selección por canaritos")
     
     # Ahora agregamos los canaritos que hace falta para lightgbm
-    df,n_canarios = add_canaritos(df,canaritos_ratio=0.05)
+    df,n_canarios = add_canaritos(df,canaritos_ratio=0.01)
     logger.info(f"DataFrame para entrenamiento con zlighgbm:{df.columns}")
 
     #04 Convertir clase ternaria a target binario
