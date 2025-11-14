@@ -46,7 +46,7 @@ def ganancia_evaluator_manual(y_true, y_pred):
 #  
 #    return ganancia_maxima
 
-def calcular_ganancia(y_true, y_pred, ventana=1000):
+def calcular_ganancia(y_true, y_pred, ventana=500):
     """
     Función que calcula el promedio de ganancias en una ventana alrededor del máximo
     """
