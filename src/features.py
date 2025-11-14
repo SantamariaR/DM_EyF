@@ -210,7 +210,11 @@ def agregar_suma_m_visa_master(df: pl.DataFrame) -> pl.DataFrame:
     Agrega una columna 'suma_m_visa_master' con la suma horizontal
     de todas las columnas que comienzan por 'm', 'Visa_m' o 'Master_m'.
     """
-    cols = df.select(pl.col("^m") | pl.col("^Visa_m") | pl.col("^Master_m")).columns
+
+    cols = [
+        c for c in df.columns
+        if c.startswith("m") or c.startswith("Visa_m") or c.startswith("Master_m")
+    ]
 
     if not cols:
         return df
