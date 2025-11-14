@@ -79,18 +79,18 @@ def main2():
     
     
    #03 Análisis e features sobre la clase ternaria(la idea es usar canaritos para podar features)
-    logger.info("=== ANÁLISIS DE FEATURES CON CANARITOS ===")
-    df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
-    logger.info(f"Número de canaritos añadidos para análisis: {n_canarios}")
+    #logger.info("=== ANÁLISIS DE FEATURES CON CANARITOS ===")
+    #df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
+    #logger.info(f"Número de canaritos añadidos para análisis: {n_canarios}")
    
-    modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
-    logger.info("Análisis de features con canaritos completado.")
+    #modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
+    #logger.info("Análisis de features con canaritos completado.")
     
-    logger.info(f"DataFrame con canaritos, total columnas: {len(df.columns)}")
-    logger.info(f"Número de canaritos añadidos: {n_canarios}")
+    #logger.info(f"DataFrame con canaritos, total columnas: {len(df.columns)}")
+    #logger.info(f"Número de canaritos añadidos: {n_canarios}")
     
     # Cargo si es necesario las features importantes según canaritos
-    #modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp48_feature_importance.csv")
+    modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp58_feature_importance.csv")
     #print(modelo_canaritos_features)
     
     logger.info(f"Número de features seleccionadas")    
