@@ -65,7 +65,7 @@ def main2():
     # Obtener columnas para aplicar lags
     columnas_lag = [col for col in df.columns if col not in excluir]
     
-    cant_lag = 6
+    cant_lag = 2
     df = feature_engineering_lag(df, columnas_lag, cant_lag=cant_lag)
     df = feature_engineering_delta_lag(df, columnas_lag, cant_lag=cant_lag)
     
@@ -90,7 +90,7 @@ def main2():
     #logger.info(f"Número de canaritos añadidos: {n_canarios}")
     
     # Cargo si es necesario las features importantes según canaritos
-    modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp58_feature_importance.csv")
+    modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp48_feature_importance.csv")
     #print(modelo_canaritos_features)
     
     logger.info(f"Número de features seleccionadas")    
