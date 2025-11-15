@@ -179,11 +179,11 @@ def evaluamos_en_predict_zlightgbm_amputado(df,n_canarios:int) -> dict:
         'boosting_type': 'gbdt',
         'objective': 'binary',
         'metric': 'custom',
-        'first_metric_only': False,
-        'boost_from_average': True,
-        'feature_pre_filter': False,
-        'force_row_wise': True,
-        'verbosity': -100,
+        #'first_metric_only': False,
+        #'boost_from_average': True,
+        #'feature_pre_filter': False,
+        #'force_row_wise': True,
+        #'verbosity': -100,
         
     
         'max_bin': 31,
