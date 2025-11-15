@@ -223,42 +223,44 @@ def agregar_suma_m_visa_master(df: pl.DataFrame) -> pl.DataFrame:
         pl.sum_horizontal([pl.col(c) for c in cols]).alias("suma_m_visa_master")
     )
 
-def estandarizar_montos_por_mes(df: pl.DataFrame) -> pl.DataFrame:
+def escalar_por_p95_mensual(df: pl.DataFrame) -> pl.DataFrame:
     """
-    Estandariza columnas de montos dividiéndolas por el percentil 95 absoluto
-    calculado por 'foto_mes', reemplazando las columnas originales.
+    Reemplaza los valores de todas las columnas numéricas que empiecen por
+    m, Visa_m o Master_m dividiéndolos por el valor absoluto del percentil 95
+    mensual (agrupado por foto_mes).
     """
-    
-    # Identificar columnas
-    cols_m = [
-        c for c in df.columns
-        if (c.startswith("m") and not c.startswith(("Master_", "Visa_")))
-    ]
-    cols_visa = [c for c in df.columns if c.startswith("Visa_m")]
-    cols_master = [c for c in df.columns if c.startswith("Master_m")]
-    cols = cols_m + cols_visa + cols_master
 
-    if not cols:
-        return df
+    # --- 1. Seleccionar columnas objetivo ---
+    patrones = ["^m", "^Visa_m", "^Master_m"]
 
-    # Expressions para calcular p95 absolutos por columna dentro de cada mes
-    percentiles = [
-        pl.col(c).abs().quantile(0.95).alias(f"p95_{c}")
-        for c in cols
+    cols_objetivo = [
+        col for col in df.columns 
+        if any(pl.Series([col]).str.contains(pat).to_list()[0] for pat in patrones)
     ]
 
-    # Calcular percentiles por mes
-    df_p95 = (
-        df
+    if not cols_objetivo:
+        raise ValueError("No se encontraron columnas que empiecen por m / Visa_m / Master_m.")
+
+    # --- 2. Calcular p95 mensual en valor absoluto ---
+    p95 = (
+        df.select(["foto_mes"] + cols_objetivo)
         .group_by("foto_mes")
-        .agg(percentiles)
+        .agg([
+            pl.col(c).abs().quantile(0.95).alias(f"p95_{c}")
+            for c in cols_objetivo
+        ])
     )
 
-    # Unir percentiles al dataset principal
-    df_joined = df.join(df_p95, on="foto_mes", how="left")
+    # --- 3. Hacer join al dataset original ---
+    df2 = df.join(p95, on="foto_mes", how="left")
 
-    # Reemplazar columnas originales con la división por el p95 absoluto
-    return df_joined.with_columns([
-        (pl.col(c) / pl.col(f"p95_{c}")).alias(c)   # reemplaza la columna original
-        for c in cols
+    # --- 4. Reemplazar cada variable dividiéndola por su p95 absoluto ---
+    df2 = df2.with_columns([
+        (pl.col(c) / pl.col(f"p95_{c}")).alias(c)
+        for c in cols_objetivo
     ])
+
+    # --- 5. Eliminar columnas p95 auxiliares ---
+    df2 = df2.drop([f"p95_{c}" for c in cols_objetivo])
+
+    return df2

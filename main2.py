@@ -7,7 +7,7 @@ import logging
 # Funciones personalizadas
 
 from src.loader import cargar_datos,calcular_clase_ternaria,contar_por_grupos,convertir_clase_ternaria_a_target, cargar_features_importantes
-from src.features import feature_engineering_lag, feature_engineering_delta_lag,AgregaVarRandomForest,PPR,agregar_suma_m_visa_master,estandarizar_montos_por_mes
+from src.features import feature_engineering_lag, feature_engineering_delta_lag,AgregaVarRandomForest,PPR,agregar_suma_m_visa_master,escalar_por_p95_mensual
 from src.config import *
 from src.optimization import optimizar,evaluar_en_test,guardar_resultados_test
 from src.best_params import cargar_mejores_hiperparametros
@@ -50,7 +50,7 @@ def main2():
     df = df.select(columnas_base)
 
     # Estandarizamos por percentil95
-    df = estandarizar_montos_por_mes(df)
+    df = escalar_por_p95_mensual(df)
 
     # Intento arreglar datadrift
     #df = convertir_todo_cero_a_nan(df)    
