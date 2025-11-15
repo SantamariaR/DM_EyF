@@ -14,7 +14,7 @@ from src.best_params import cargar_mejores_hiperparametros
 from src.final_training import evaluar_en_predict
 from src.output_manager import guardar_resultados_predict
 from src.cleaning_features import train_overfit_lgbm_features, add_canaritos, seleccionar_variables_por_canaritos,convertir_todo_cero_a_nan,ajustar_por_inflacion
-from src.zfinal_train import evaluamos_en_predict_zlightgbm,evaluamos_en_predict_zlightgbm_amputado
+from src.zfinal_train import evaluamos_en_predict_zlightgbm,evaluamos_en_final_zlightgbm
 
 # Nombre del log fijo en lugar de uno con timestamp
 nombre_log = f"log_{STUDY_NAME}.log"
@@ -110,7 +110,7 @@ def main2():
     # Me aseguro que el n{umero de canarios sea 5}
     col_canarios = [col for col in df.columns if col not in excluir] 
     n_canarios = len(col_canarios)
-    ratio_canarios = 10 / n_canarios
+    ratio_canarios = 5 / n_canarios
 
 
     # Ahora agregamos los canaritos que hace falta para lightgbm
@@ -121,9 +121,14 @@ def main2():
     df = convertir_clase_ternaria_a_target(df)    
     
     # Entrenamiento y evaluación final en modo predict
-    df = evaluamos_en_predict_zlightgbm_amputado(df,n_canarios=n_canarios)
+    df_test = evaluamos_en_predict_zlightgbm(df,n_canarios=n_canarios)
     
-    guardar_resultados_test(df)
+    guardar_resultados_test(df_test)
+    
+    # Entrenamiento y evaluación final en modo predict
+    df_final = evaluamos_en_final_zlightgbm(df,n_canarios=n_canarios)
+    
+    guardar_resultados_predict(df_final)
     
     
     # Mostrar primeras filas en consola
