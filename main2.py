@@ -110,7 +110,7 @@ def main2():
     # Me aseguro que el n{umero de canarios sea 5}
     col_canarios = [col for col in df.columns if col not in excluir] 
     n_canarios = len(col_canarios)
-    ratio_canarios = 1 / n_canarios
+    ratio_canarios = 10 / n_canarios
 
 
     # Ahora agregamos los canaritos que hace falta para lightgbm
