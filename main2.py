@@ -7,7 +7,7 @@ import logging
 # Funciones personalizadas
 
 from src.loader import cargar_datos,calcular_clase_ternaria,contar_por_grupos,convertir_clase_ternaria_a_target, cargar_features_importantes
-from src.features import feature_engineering_lag, feature_engineering_delta_lag,AgregaVarRandomForest,PPR,agregar_suma_m_visa_master
+from src.features import feature_engineering_lag, feature_engineering_delta_lag,AgregaVarRandomForest,PPR,agregar_suma_m_visa_master,estandarizar_montos_por_mes
 from src.config import *
 from src.optimization import optimizar,evaluar_en_test,guardar_resultados_test
 from src.best_params import cargar_mejores_hiperparametros
@@ -39,14 +39,18 @@ def main2():
     path_data = DATA_PATH
     df = cargar_datos(path_data)
     logger.info(f"Cargado el dataset:{path_data}")
-    
+
+   
     #Ajuste IPC
-    df = ajustar_por_inflacion(df) # LO CAMBIÉ POR MULTIPLICACIÓN
+    #df = ajustar_por_inflacion(df) # LO CAMBIÉ POR MULTIPLICACIÓN
         
     #Tiro algunas columnas que cambien tendencia
     columnas_a_eliminar = ["cprestamos_personales","mprestamos_personales"]
     columnas_base = [col for col in df.columns if col not in columnas_a_eliminar]
     df = df.select(columnas_base)
+
+    # Estandarizamos por percentil95
+    df = estandarizar_montos_por_mes(df)
 
     # Intento arreglar datadrift
     #df = convertir_todo_cero_a_nan(df)    
@@ -82,18 +86,18 @@ def main2():
     
     
    #03 Análisis e features sobre la clase ternaria(la idea es usar canaritos para podar features)
-    #logger.info("=== ANÁLISIS DE FEATURES CON CANARITOS ===")
-    #df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
-    #logger.info(f"Número de canaritos añadidos para análisis: {n_canarios}")
+    logger.info("=== ANÁLISIS DE FEATURES CON CANARITOS ===")
+    df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
+    logger.info(f"Número de canaritos añadidos para análisis: {n_canarios}")
    
-    #modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
-    #logger.info("Análisis de features con canaritos completado.")
+    modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
+    logger.info("Análisis de features con canaritos completado.")
     
-    #logger.info(f"DataFrame con canaritos, total columnas: {len(df.columns)}")
-    #logger.info(f"Número de canaritos añadidos: {n_canarios}")
+    logger.info(f"DataFrame con canaritos, total columnas: {len(df.columns)}")
+    logger.info(f"Número de canaritos añadidos: {n_canarios}")
     
     # Cargo si es necesario las features importantes según canaritos
-    modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp68_feature_importance.csv")
+    #modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp68_feature_importance.csv")
     #print(modelo_canaritos_features)
     
     logger.info(f"Número de features seleccionadas")    

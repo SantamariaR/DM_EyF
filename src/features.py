@@ -222,3 +222,43 @@ def agregar_suma_m_visa_master(df: pl.DataFrame) -> pl.DataFrame:
     return df.with_columns(
         pl.sum_horizontal([pl.col(c) for c in cols]).alias("suma_m_visa_master")
     )
+
+def estandarizar_montos_por_mes(df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Estandariza columnas de montos dividiéndolas por el percentil 95 absoluto
+    calculado por 'foto_mes', reemplazando las columnas originales.
+    """
+    
+    # Identificar columnas
+    cols_m = [
+        c for c in df.columns
+        if (c.startswith("m") and not c.startswith(("Master_", "Visa_")))
+    ]
+    cols_visa = [c for c in df.columns if c.startswith("Visa_m")]
+    cols_master = [c for c in df.columns if c.startswith("Master_m")]
+    cols = cols_m + cols_visa + cols_master
+
+    if not cols:
+        return df
+
+    # Expressions para calcular p95 absolutos por columna dentro de cada mes
+    percentiles = [
+        pl.col(c).abs().quantile(0.95).alias(f"p95_{c}")
+        for c in cols
+    ]
+
+    # Calcular percentiles por mes
+    df_p95 = (
+        df
+        .group_by("foto_mes")
+        .agg(percentiles)
+    )
+
+    # Unir percentiles al dataset principal
+    df_joined = df.join(df_p95, on="foto_mes", how="left")
+
+    # Reemplazar columnas originales con la división por el p95 absoluto
+    return df_joined.with_columns([
+        (pl.col(c) / pl.col(f"p95_{c}")).alias(c)   # reemplaza la columna original
+        for c in cols
+    ])

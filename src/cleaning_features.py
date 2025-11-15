@@ -612,7 +612,7 @@ def ajustar_por_inflacion(df: pl.DataFrame) -> pl.DataFrame:
 
     # Ajustar por inflación
     df = df.with_columns([
-        (pl.col(col) * pl.col("ipc")).alias(col) for col in columnas_monetarias
+        (pl.col(col) / pl.col("ipc")).alias(col) for col in columnas_monetarias
     ])
 
     # Eliminar IPC
