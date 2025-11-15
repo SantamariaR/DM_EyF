@@ -14,7 +14,7 @@ from src.best_params import cargar_mejores_hiperparametros
 from src.final_training import evaluar_en_predict
 from src.output_manager import guardar_resultados_predict
 from src.cleaning_features import train_overfit_lgbm_features, add_canaritos, seleccionar_variables_por_canaritos,convertir_todo_cero_a_nan,ajustar_por_inflacion
-from src.zfinal_train import evaluamos_en_predict_zlightgbm
+from src.zfinal_train import evaluamos_en_predict_zlightgbm,evaluamos_en_predict_zlightgbm_amputado
 
 # Nombre del log fijo en lugar de uno con timestamp
 nombre_log = f"log_{STUDY_NAME}.log"
@@ -89,18 +89,18 @@ def main2():
     
     
    #03 Análisis e features sobre la clase ternaria(la idea es usar canaritos para podar features)
-    logger.info("=== ANÁLISIS DE FEATURES CON CANARITOS ===")
-    df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
-    logger.info(f"Número de canaritos añadidos para análisis: {n_canarios}")
+    #logger.info("=== ANÁLISIS DE FEATURES CON CANARITOS ===")
+    #df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
+    #logger.info(f"Número de canaritos añadidos para análisis: {n_canarios}")
    
-    modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
-    logger.info("Análisis de features con canaritos completado.")
+    #modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
+    #logger.info("Análisis de features con canaritos completado.")
     
-    logger.info(f"DataFrame con canaritos, total columnas: {len(df.columns)}")
-    logger.info(f"Número de canaritos añadidos: {n_canarios}")
+    #logger.info(f"DataFrame con canaritos, total columnas: {len(df.columns)}")
+    #logger.info(f"Número de canaritos añadidos: {n_canarios}")
     
     # Cargo si es necesario las features importantes según canaritos
-    #modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp68_feature_importance.csv")
+    modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp68_feature_importance.csv")
     #print(modelo_canaritos_features)
     
     logger.info(f"Número de features seleccionadas")    
@@ -121,7 +121,7 @@ def main2():
     df = convertir_clase_ternaria_a_target(df)    
     
     # Entrenamiento y evaluación final en modo predict
-    df = evaluamos_en_predict_zlightgbm(df,n_canarios=n_canarios)
+    df = evaluamos_en_predict_zlightgbm_amputado(df,n_canarios=n_canarios)
     
     guardar_resultados_test(df)
     
