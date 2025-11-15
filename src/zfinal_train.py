@@ -172,7 +172,6 @@ def evaluamos_en_predict_zlightgbm_amputado(df,n_canarios:int) -> dict:
         
     Returns:
         dict: Resultados de la evaluación en predict (ganancia + estadísticas básicas) """
-        
     
     #Definir hiperparámetros fijos para la evaluación final
     params = {
