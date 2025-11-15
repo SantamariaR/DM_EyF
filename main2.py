@@ -41,7 +41,7 @@ def main2():
     logger.info(f"Cargado el dataset:{path_data}")
     
     #Ajuste IPC
-    df = ajustar_por_inflacion(df)
+    df = ajustar_por_inflacion(df) # LO CAMBIÉ POR MULTIPLICACIÓN
         
     #Tiro algunas columnas que cambien tendencia
     columnas_a_eliminar = ["cprestamos_personales","mprestamos_personales"]
