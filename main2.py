@@ -50,11 +50,14 @@ def main2():
     df = df.select(columnas_base)
 
     # Estandarizamos por percentil95
-    df = escalar_por_p95_mensual(df)
+    #df = escalar_por_p95_mensual(df)
 
     # Intento arreglar datadrift
     #df = convertir_todo_cero_a_nan(df)    
-   
+
+    # Agreggo la columna mes
+    df = df.with_columns((pl.col("foto_mes") % 100).alias("mes"))
+
     #01 Clase ternaria
     df = calcular_clase_ternaria(df)
     logger.info(f"Grupos de clase ternaria por mes:{contar_por_grupos(df)}")
