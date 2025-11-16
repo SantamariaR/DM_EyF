@@ -99,7 +99,7 @@ def main():
     
     
     logger.info(f"Número de features seleccionadas")    
-    df = seleccionar_variables_por_canaritos(modelo_canaritos_features,porcentaje_umbral=0.5,df=df)
+    df = seleccionar_variables_por_canaritos(modelo_canaritos_features,porcentaje_umbral=0.95,df=df)
     logger.info(f"DataFrame final con {len(df.columns)} columnas después de selección por canaritos")
    
     #04 Convertir clase ternaria a target binario
