@@ -57,7 +57,7 @@ def main2():
     #df = convertir_todo_cero_a_nan(df)    
 
     # Agreggo la columna mes
-    #df = df.with_columns((pl.col("foto_mes") % 100).alias("mes"))
+    df = df.with_columns((pl.col("foto_mes") % 100).alias("mes"))
 
     #01 Clase ternaria
     df = calcular_clase_ternaria(df)

@@ -1,4 +1,4 @@
-STUDY_NAME : "exp77"
+STUDY_NAME : "exp78"
 
 #BUCKET_NAME: "resultados"
 
@@ -20,77 +20,3 @@ competencia01:
     COSTO_ESTIMULO: -2
     UNDERSUMPLING: 0.1
     
-
-
-#    parametros_lgbm:
-#      boosting: "gbdt" # puede ir  dart  , ni pruebe random_forest
-#      objective: "binary"
-#      metric: "None"
-#      first_metric_only: FALSE
-#      boost_from_average: TRUE
-#      feature_pre_filter: FALSE
-#      force_row_wise: TRUE # para reducir warnings
-#      verbosity: -100
-#    
-#      seed: 143287
-#      max_depth: -1 # -1 significa no limitar,  por ahora lo dejo fijo
-#      min_gain_to_split: 0 # min_gain_to_split >= 0
-#      min_sum_hessian_in_leaf: 0.001 #  min_sum_hessian_in_leaf >= 0.0
-#      lambda_l1: 0.0 # lambda_l1 >= 0.0
-#      lambda_l2: 0.0 # lambda_l2 >= 0.0
-#      max_bin: 31 # lo debo dejar fijo, no participa de la BO
-#    
-#      bagging_fraction: 1.0 # 0.0 < bagging_fraction <= 1.0
-#      pos_bagging_fraction: 1.0 # 0.0 < pos_bagging_fraction <= 1.0
-#      neg_bagging_fraction: 1.0 # 0.0 < neg_bagging_fraction <= 1.0
-#      is_unbalance: FALSE #
-#      scale_pos_weight: 1.0 # scale_pos_weight > 0.0
-#    
-#      drop_rate: 0.1 # 0.0 < neg_bagging_fraction <= 1.0
-#      max_drop: 50 # <=0 means no limit
-#      skip_drop: 0.5 # 0.0 <= skip_drop <= 1.0
-#    
-#      extra_trees: FALSE
-#    
-#      num_iterations: 2658
-#      learning_rate: 0.008095619
-#      feature_fraction: 0.2897805
-#      num_leaves: 36
-#      min_child_samples: 572
-#      min_data_in_leaf : 1000
-#    
-#    
-#    hiperparam_bo:
-#      UNDERSUMPLING: 0.5 # 0.0 < UNDERSUMPLING <= 1.0. De los continua,0.1 es el 10% del total de los continua.
-#      VAL_FOLDS_BO: 5 # cantidad de folds para validacion cruzada en la busqueda de hiperparametros
-#      N_TRIALS: 50 # cantidad de ensayos en la busqueda de hiper
-#      hs:
-#        num_iterations:
-#          type: integer
-#          lower: 2048
-#          upper: 4096
-#        learning_rate:
-#          type: float
-#          lower: 0.002
-#          upper: 0.8
-#          log: true
-#        feature_fraction:
-#          type: float
-#          lower: 0.2
-#          upper: 0.8
-#        num_leaves:
-#          type: integer
-#          lower: 2
-#          upper: 82
-#        min_data_in_leaf:
-#          type: integer
-#          lower: 1
-#          upper: 2048
-     #   lambda_l1:
-     #     type: float
-     #     lower: 0
-     #     upper: 10
-     #   lambda_l2:
-     #     type: float
-     #     lower: 0
-     #     upper: 10
