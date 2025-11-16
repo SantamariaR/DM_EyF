@@ -7,13 +7,13 @@ import logging
 # Funciones personalizadas
 
 from src.loader import cargar_datos,calcular_clase_ternaria,contar_por_grupos,convertir_clase_ternaria_a_target, cargar_features_importantes,calcular_clase_ternaria_bis
-from src.features import feature_engineering_lag, feature_engineering_delta_lag,AgregaVarRandomForest,PPR
+from src.features import feature_engineering_lag, feature_engineering_delta_lag,AgregaVarRandomForest,PPR,agregar_suma_m_visa_master
 from src.config import *
 from src.optimization import optimizar,evaluar_en_test,guardar_resultados_test
 from src.best_params import cargar_mejores_hiperparametros
 from src.final_training import evaluar_en_predict
 from src.output_manager import guardar_resultados_predict
-from src.cleaning_features import train_overfit_lgbm_features, add_canaritos, seleccionar_variables_por_canaritos,estandarizar_variables_monetarias_polars,convertir_ceros_a_nan,ajustar_mediana_6_meses
+from src.cleaning_features import train_overfit_lgbm_features, add_canaritos, seleccionar_variables_por_canaritos,estandarizar_variables_monetarias_polars,ajustar_mediana_6_meses
 
 
 # Nombre del log fijo en lugar de uno con timestamp
@@ -44,7 +44,8 @@ def main():
 #    df = estandarizar_variables_monetarias_polars(df)
 #    df = convertir_ceros_a_nan(df, columna_mes='foto_mes', umbral_ceros=0.99)
 #   Tiro algunas columnas que cambien tendencia
-    columnas_a_eliminar = ["cprestamos_personales","mprestamos_personales"]
+    columnas_a_eliminar = ["cprestamos_personales","mprestamos_personales","mpagodeservicios","tcallcenter","ccallcenter_transacciones",
+                          "ccajas_transacciones","Master_Fvencimiento"]
     columnas_base = [col for col in df.columns if col not in columnas_a_eliminar]
     df = df.select(columnas_base)
 
@@ -60,6 +61,9 @@ def main():
     # Columnas a excluir
     excluir = ["numero_de_cliente", "foto_mes", "clase_ternaria"]
     
+    # Agrego la suma de los montos
+    df = agregar_suma_m_visa_master(df)
+    
     # Obtener columnas para aplicar lags
     columnas_lag = [col for col in df.columns if col not in excluir]
     
@@ -74,7 +78,7 @@ def main():
     df = feature_engineering_delta_lag(df, columnas_lag, cant_lag=cant_lag)
     
     # Intentamos generar features con PPR
-    #df = PPR(df)
+    df = PPR(df)
     
     # Hacemos un RF para agregar variables
     df = AgregaVarRandomForest(df)
@@ -102,7 +106,7 @@ def main():
     df = convertir_clase_ternaria_a_target(df)
     
     #05 . Ejecutar optimización (función simple)
-    study = optimizar(df, n_trials= 30,undersampling=UNDERSUMPLING) 
+    study = optimizar(df, n_trials= 50,undersampling=UNDERSUMPLING) 
     
     #06. Análisis adicional
     logger.info("=== ANÁLISIS DE RESULTADOS ===")

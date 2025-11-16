@@ -569,7 +569,7 @@ def evaluar_en_test(df, mejores_params) -> dict:
             params,
             dtrain,
             feval=ganancia_evaluator_lgb,
-            num_boost_round=100,  # Especifica el número de iteraciones directamente
+            #num_boost_round=100,  # Especifica el número de iteraciones directamente
             callbacks=[lgb.log_evaluation(period=100)]
         )        
         # Guardar modelo

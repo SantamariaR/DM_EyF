@@ -45,7 +45,8 @@ def main2():
     #df = ajustar_por_inflacion(df) # LO CAMBIÉ POR MULTIPLICACIÓN
         
     #Tiro algunas columnas que cambien tendencia
-    columnas_a_eliminar = ["mrentabilidad","mactivos_margen","tcuentas","ccaja_ahorro","cprestamos_personales","mprestamos_personales","cprestamos_prendarios","mprestamos_prendarios","mpayroll2","cpayroll2_trx","mpagodeservicios","mcomisiones_otras","cforex_buy","mforex_buy","mforex_sell","ccheques_depositados_rechazados","mcheques_depositados_rechazados","ccheques_emitidos_rechazados","mcheques_emitidos_rechazados","tcallcenter","ccallcenter_transacciones","ccajas_transacciones","Master_delinquency","Master_mfinanciacion_limite","Master_Finiciomora","Master_msaldodolares","Master_mconsumosdolares","Master_mpagosdolares","Master_mconsumototal","Master_cadelantosefectivo","Master_mpagominimo","Visa_Fvencimiento","Visa_mconsumosdolares","Visa_cadelantosefectivo","Visa_mpagominimo"]
+    columnas_a_eliminar = ["cprestamos_personales","mprestamos_personales","mpagodeservicios","tcallcenter","ccallcenter_transacciones",
+                          "ccajas_transacciones","Master_Fvencimiento"]
     columnas_base = [col for col in df.columns if col not in columnas_a_eliminar]
     df = df.select(columnas_base)
 
@@ -80,7 +81,7 @@ def main2():
     df = feature_engineering_delta_lag(df, columnas_lag, cant_lag=cant_lag)
     
     # Intentamos generar features con PPR
-    #df = PPR(df)
+    df = PPR(df)
         
     # Hacemos un RF para agregar variables
     df = AgregaVarRandomForest(df)
@@ -126,9 +127,9 @@ def main2():
     guardar_resultados_test(df_test)
     
     # Entrenamiento y evaluación final en modo predict
-    #df_final = evaluamos_en_final_zlightgbm(df,n_canarios=n_canarios)
+    df_final = evaluamos_en_final_zlightgbm(df,n_canarios=n_canarios)
     
-    #guardar_resultados_predict(df_final)
+    guardar_resultados_predict(df_final)
     
     
     # Mostrar primeras filas en consola
