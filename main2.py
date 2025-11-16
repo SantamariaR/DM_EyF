@@ -80,7 +80,7 @@ def main2():
     df = feature_engineering_delta_lag(df, columnas_lag, cant_lag=cant_lag)
     
     # Intentamos generar features con PPR
-    df = PPR(df)
+    #df = PPR(df)
         
     # Hacemos un RF para agregar variables
     df = AgregaVarRandomForest(df)
