@@ -278,6 +278,8 @@ def entrenar_y_aplicar_quantiles_global(
     Aplicamos quantiles globales a todas las features del dataset sin tener
     en cuenta temporalidad
     """
+    logger.info("Empieza el análisis de Quantile Regresion")
+    
     clases = ["CONTINUA", "BAJA+1", "BAJA+2"]
     quantiles = [0.10, 0.50, 0.90]
     frac = UNDERSUMPLING
@@ -310,6 +312,8 @@ def entrenar_y_aplicar_quantiles_global(
     for clase in clases:
         modelos[clase] = {}
         df_c = df_train.filter(pl.col("clase_ternaria") == clase)
+        
+        logger.info(f"Entrenamineto sobre la clase {clase}")
 
         for feat in features:
             y = df_c[feat].to_numpy()
@@ -329,10 +333,14 @@ def entrenar_y_aplicar_quantiles_global(
                 modelos[clase][feat][q] = model
 
     # --- Aplicamos a TODO el dataset ---
-    N = df.height()
+    logger.info("Fin de entrenamientos de los modelos")
+    
+    N = df.height
     X_full = np.arange(N).reshape(-1, 1)
 
+    logger.info("Aplicamos sobre todo el dataset")
     for clase in clases:
+        logger.info(f"Aplicación del modelo de la clase {clase}")
         for feat in features:
             for q in quantiles:
                 pred = modelos[clase][feat][q].predict(X_full)
@@ -341,4 +349,5 @@ def entrenar_y_aplicar_quantiles_global(
                     (pl.col(feat) - pl.Series(pred)).alias(colname)
                 )
 
+    logger.info("Fin de las features de quantiles")
     return df_out
