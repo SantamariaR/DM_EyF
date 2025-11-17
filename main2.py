@@ -98,6 +98,8 @@ def main2():
    
     modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
     logger.info("Análisis de features con canaritos completado.")
+    # Borramos canaritos
+    df_canaritos = None
     
     logger.info(f"DataFrame con canaritos, total columnas: {len(df.columns)}")
     logger.info(f"Número de canaritos añadidos: {n_canarios}")

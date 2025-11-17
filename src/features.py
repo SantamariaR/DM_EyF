@@ -287,7 +287,7 @@ def entrenar_y_aplicar_quantiles_global(
     periodos_entrenamiento = MES_TRAIN + [202103] + MES_VALIDACION
     periodo_test = MES_TEST
     
-    df = df.filter(pl.col("foto_mes").is_in(periodos_entrenamiento+periodo_test))
+    df = df.filter(pl.col("foto_mes").is_in(periodos_entrenamiento+periodo_test)) #FILTRO SOLO LOS MESES DE ENTRENAMIENTO Y TEST
 
     df_train = df.filter(pl.col("foto_mes").is_in(periodos_entrenamiento))
     
