@@ -7,7 +7,7 @@ import logging
 # Funciones personalizadas
 
 from src.loader import cargar_datos,calcular_clase_ternaria,contar_por_grupos,convertir_clase_ternaria_a_target, cargar_features_importantes
-from src.features import feature_engineering_lag, feature_engineering_delta_lag,AgregaVarRandomForest,PPR,agregar_suma_m_visa_master,escalar_por_p95_mensual
+from src.features import feature_engineering_lag, feature_engineering_delta_lag,AgregaVarRandomForest,PPR,agregar_suma_m_visa_master,entrenar_y_aplicar_quantiles_global
 from src.config import *
 from src.optimization import optimizar,evaluar_en_test,guardar_resultados_test
 from src.best_params import cargar_mejores_hiperparametros
@@ -84,6 +84,9 @@ def main2():
         
     # Hacemos un RF para agregar variables
     #df = AgregaVarRandomForest(df)
+    
+    # Calculo regresión quartílica para cada clase
+    df = entrenar_y_aplicar_quantiles_global(df)
     
     logger.info(f"DataFrame final con {len(df.columns)} columnas después de feature engineering")
     

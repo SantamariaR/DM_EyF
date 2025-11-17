@@ -7,6 +7,7 @@ from .config import *
 from .gain_function import calcular_ganancia_acumulada,calcular_ganancia
 
 
+
 logger = logging.getLogger(__name__)
 
 

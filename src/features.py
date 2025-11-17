@@ -4,6 +4,8 @@ import logging
 import polars as pl
 import numpy as np
 import lightgbm as lgb
+from .config import *
+from lightgbm import LGBMRegressor
 
 logger = logging.getLogger("__name__")
 
@@ -264,3 +266,79 @@ def escalar_por_p95_mensual(df: pl.DataFrame) -> pl.DataFrame:
     df2 = df2.drop([f"p95_{c}" for c in cols_objetivo])
 
     return df2
+
+
+
+
+def entrenar_y_aplicar_quantiles_global(
+    df: pl.DataFrame,
+    seed=123
+):
+    """
+    Aplicamos quantiles globales a todas las features del dataset sin tener
+    en cuenta temporalidad
+    """
+    clases = ["CONTINUA", "BAJA+1", "BAJA+2"]
+    quantiles = [0.10, 0.50, 0.90]
+    frac = UNDERSUMPLING
+    
+    periodos_entrenamiento = MES_TRAIN + [202103] + MES_VALIDACION
+
+    df_train = df.filter(pl.col("foto_mes").is_in(periodos_entrenamiento))
+    
+    # UNDERSUMPLIG sobre la clase mayoritaria
+    df_pos = df_train.filter(pl.col("clase_ternaria").is_in(["BAJA+1","BAJA+2"]))
+    df_neg = df_train.filter(pl.col("clase_ternaria").is_in(["CONTINUA"]))
+    
+    n_sample = int(df_neg.height * frac)
+    df_neg = df_neg.sample(n=n_sample, seed=SEMILLA[0])
+
+    # Concatenar positivos y negativos muestreados
+    df_sub = pl.concat([df_pos, df_neg])
+
+    # Shuffle del dataset
+    df_train = df_sub.sample(fraction=1.0, shuffle=True, seed=SEMILLA[0]) 
+    df_out = df.clone()
+
+    # detecto features numéricas
+    features = [c for c in df.columns if c not in 
+                ["foto_mes", "clase_ternaria"]]
+
+    # diccionario: clase → feature → q → modelo
+    modelos = {}
+
+    for clase in clases:
+        modelos[clase] = {}
+        df_c = df_train.filter(pl.col("clase_ternaria") == clase)
+
+        for feat in features:
+            y = df_c[feat].to_numpy()
+            X = np.arange(len(y)).reshape(-1, 1)  # regresión simple temporal
+            modelos[clase][feat] = {}
+
+            for q in quantiles:
+                params = {
+                    "objective": "quantile",
+                    "metric": "quantile",
+                    "alpha": q,
+                    "verbosity": -1,
+                    "seed": seed,
+                }
+                dtrain = lgb.Dataset(X, label=y)
+                model = lgb.train(params, dtrain, num_boost_round=80)
+                modelos[clase][feat][q] = model
+
+    # --- Aplicamos a TODO el dataset ---
+    N = df.height()
+    X_full = np.arange(N).reshape(-1, 1)
+
+    for clase in clases:
+        for feat in features:
+            for q in quantiles:
+                pred = modelos[clase][feat][q].predict(X_full)
+                colname = f"dist_{clase}_q{int(q*100)}_{feat}"
+                df_out = df_out.with_columns(
+                    (pl.col(feat) - pl.Series(pred)).alias(colname)
+                )
+
+    return df_out
