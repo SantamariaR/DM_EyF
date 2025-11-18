@@ -486,10 +486,12 @@ def generar_proba_rolling_lightgbm(
     # Ordeno meses disponibles
     meses = MES_TRAIN + [202103]+ MES_VALIDACION +[202105] + MES_TEST
 
-    # Copia + columna pred vacía
+    df = df.with_row_index("row_id")   # versión nueva y no-deprecada
     df_out = df.clone().with_columns(
         pl.lit(None).alias("pred_proba_rolling")
     )
+
+    predicciones = {}  # <-- acá se inicializa
 
     # Features para LightGBM
     features = [
@@ -519,7 +521,7 @@ def generar_proba_rolling_lightgbm(
 
     # Loop por cada mes
     for mes_actual in meses:
-
+        
         meses_train = [
             m for m in meses
             if (m < mes_actual) and (m >= mes_actual - meses_contexto)
@@ -587,23 +589,36 @@ def generar_proba_rolling_lightgbm(
         pred_ensemble = np.mean(pred_list, axis=0)
         logger.info(f"Pred ensemble mes {mes_actual}: min={pred_ensemble.min():.4f}, max={pred_ensemble.max():.4f}")
 
-        # --- CORRECCIÓN CRÍTICA: expandir predicciones correctamente ---
-        df_pred_mes = pl.DataFrame({
-            "foto_mes": df_mes["foto_mes"],
-            "pred": pred_ensemble
-        })
-        
-        df_out = df_out.join(
-            df_pred_mes,
-            on=["foto_mes"],
-            how="left"
-        ).with_columns(
-            pl.when(pl.col("pred").is_not_null())
-            .then(pl.col("pred"))
-            .otherwise(pl.col("pred_proba_rolling"))
-            .alias("pred_proba_rolling")
-        ).drop("pred")
+        row_ids = df_mes["row_id"].to_list()
+        preds_list = np.asarray(pred_ensemble, dtype=np.float32).tolist()
+        predicciones[mes_actual] = (row_ids, preds_list)
 
+        # liberá modelos/objetos pesados
+        del model, dtrain
+           
+    df_pred_list = []
+    for mes, (row_ids, preds) in predicciones.items():
+        df_pred_list.append(
+            pl.DataFrame({
+                "row_id": row_ids,
+                "pred_proba_rolling": preds
+            })
+        )
 
+    if df_pred_list:
+        df_pred = pl.concat(df_pred_list)
+    else:
+        df_pred = pl.DataFrame({"row_id": [], "pred_proba_rolling": []})
+
+    # Unir UNA vez por row_id (mucho más eficiente)
+    df_out = df_out.join(df_pred, on="row_id", how="left").with_columns(
+        pl.when(pl.col("pred_proba_rolling").is_not_null())
+        .then(pl.col("pred_proba_rolling"))
+        .otherwise(pl.col("pred_proba_rolling"))  # ya está en la columna; esto es sólo para ejemplificar
+    )
+
+    # si ya no necesitás row_id, podés dropearla
+    df_out = df_out.drop("row_id")
+    
     logger.info("=== ROLLING LGBM FINALIZADO ===")
     return df_out
