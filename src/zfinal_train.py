@@ -475,31 +475,29 @@ def evaluamos_en_predict_zlightgbm_amputado(df,n_canarios:int) -> dict:
     return  df_pred
 
 
-def generar_proba_rolling_lightgbm(df: pl.DataFrame,
-                                   n_canarios: int = 5,
-                                   meses_contexto: int = 4) -> pl.DataFrame:
-    """
-    Genera una única columna pred_proba_rolling entrenando un LightGBM
-    por cada mes usando los últimos N meses previos como train.
-    """
+def generar_proba_rolling_lightgbm(
+    df: pl.DataFrame,
+    n_canarios: int = 5,
+    meses_contexto: int = 4
+) -> pl.DataFrame:
 
     logger.info("=== INICIANDO ROLLING LIGHTGBM (con ensemble y canarios) ===")
 
-    # Ordeno meses
+    # Ordeno meses disponibles
     meses = sorted(df["foto_mes"].unique().to_list())
 
-    # Clon y agrego columna de predicciones
+    # Copia + columna pred vacía
     df_out = df.clone().with_columns(
         pl.lit(None).alias("pred_proba_rolling")
     )
 
-    # Features (todas menos targets y foto_mes)
+    # Features para LightGBM
     features = [
         c for c in df.columns
         if c not in ["foto_mes", "clase_ternaria", "clase_01"]
     ]
 
-    # Params base
+    # LightGBM base params
     params = {
         'boosting_type': 'gbdt',
         'objective': 'binary',
@@ -519,10 +517,9 @@ def generar_proba_rolling_lightgbm(df: pl.DataFrame,
         'gradient_bound': 0.1
     }
 
-    # Loop por meses para generar rolling train
+    # Loop por cada mes
     for mes_actual in meses:
 
-        # Meses previos
         meses_train = [
             m for m in meses
             if (m < mes_actual) and (m >= mes_actual - meses_contexto)
@@ -535,12 +532,12 @@ def generar_proba_rolling_lightgbm(df: pl.DataFrame,
         logger.info(f"\n--- Mes {mes_actual} ---")
         logger.info(f"Meses usados como train: {meses_train}")
 
-        # Extraigo train y test del mes actual
+        # Train
         df_train = df_out.filter(pl.col("foto_mes").is_in(meses_train))
         df_mes   = df_out.filter(pl.col("foto_mes") == mes_actual)
 
         if df_train.is_empty() or df_mes.is_empty():
-            logger.warning(f"Mes {mes_actual}: train o mes vacío → se saltea")
+            logger.warning(f"Mes {mes_actual}: train o test vacío → skip")
             continue
 
         # Undersampling
@@ -550,14 +547,14 @@ def generar_proba_rolling_lightgbm(df: pl.DataFrame,
         n_sample = int(df_neg.height * UNDERSUMPLING)
         df_neg = df_neg.sample(n=n_sample, seed=SEMILLA[0])
 
-        df_sub = pl.concat([df_pos, df_neg]).sample(
-            fraction=1.0, shuffle=True, seed=SEMILLA[0]
+        df_sub = (
+            pl.concat([df_pos, df_neg])
+            .sample(fraction=1.0, shuffle=True, seed=SEMILLA[0])
         )
 
         # Pandas para LGBM
         X = df_sub[features].to_pandas()
         y = df_sub["clase_01"].to_pandas()
-
         X_mes = df_mes[features].to_pandas()
 
         logger.info(f"Entrenando con {X.shape[0]} filas...")
@@ -565,8 +562,8 @@ def generar_proba_rolling_lightgbm(df: pl.DataFrame,
         # Ensemble
         pred_list = []
 
-        for i, semilla in enumerate(SEMILLA):
-            logger.info(f"Modelo seed={semilla}")
+        for semilla in SEMILLA:
+            logger.info(f"  Modelo seed={semilla}")
 
             params["seed"] = semilla
             params["feature_fraction_seed"] = semilla
@@ -581,21 +578,21 @@ def generar_proba_rolling_lightgbm(df: pl.DataFrame,
                 callbacks=[lgb.log_evaluation(period=100)]
             )
 
-            pred_single = abs(model.predict(X_mes))
-            pred_list.append(pred_single)
+            pred = abs(model.predict(X_mes))
+            pred_list.append(pred)
 
-            logger.info(f"    pred: min={pred_single.min():.4f}, max={pred_single.max():.4f}")
+            logger.info(f"    pred: min={pred.min():.4f}, max={pred.max():.4f}")
 
         # Ensemble final
         pred_ensemble = np.mean(pred_list, axis=0)
+        logger.info(f"Pred ensemble mes {mes_actual}: min={pred_ensemble.min():.4f}, max={pred_ensemble.max():.4f}")
 
-        logger.info(f"Pred ensemble mes {mes_actual}: "
-                    f"min={pred_ensemble.min():.4f}, max={pred_ensemble.max():.4f}")
+        # --- CORRECCIÓN CRÍTICA: expandir predicciones correctamente ---
+        pred_series = pl.Series(pred_ensemble)  # tamaño N_mes
 
-        # Pegar al DF
         df_out = df_out.with_columns(
             pl.when(pl.col("foto_mes") == mes_actual)
-            .then(pl.Series("tmp_pred", pred_ensemble))
+            .then(pred_series)
             .otherwise(pl.col("pred_proba_rolling"))
             .alias("pred_proba_rolling")
         )
