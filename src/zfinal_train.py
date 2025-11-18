@@ -592,9 +592,7 @@ def generar_proba_rolling_lightgbm(
         row_ids = df_mes["row_id"].to_list()
         preds_list = np.asarray(pred_ensemble, dtype=np.float32).tolist()
         predicciones[mes_actual] = (row_ids, preds_list)
-
-        # liberá modelos/objetos pesados
-        del model, dtrain
+        
            
     df_pred_list = []
     for mes, (row_ids, preds) in predicciones.items():
