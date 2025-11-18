@@ -484,7 +484,7 @@ def generar_proba_rolling_lightgbm(
     logger.info("=== INICIANDO ROLLING LIGHTGBM (con ensemble y canarios) ===")
 
     # Ordeno meses disponibles
-    meses = sorted(df["foto_mes"].unique().to_list())
+    meses = MES_TRAIN + [202103]+ MES_VALIDACION +[202105] + MES_TEST
 
     # Copia + columna pred vacía
     df_out = df.clone().with_columns(
@@ -588,14 +588,22 @@ def generar_proba_rolling_lightgbm(
         logger.info(f"Pred ensemble mes {mes_actual}: min={pred_ensemble.min():.4f}, max={pred_ensemble.max():.4f}")
 
         # --- CORRECCIÓN CRÍTICA: expandir predicciones correctamente ---
-        pred_series = pl.Series(pred_ensemble)  # tamaño N_mes
-
-        df_out = df_out.with_columns(
-            pl.when(pl.col("foto_mes") == mes_actual)
-            .then(pred_series)
+        df_pred_mes = pl.DataFrame({
+            "foto_mes": df_mes["foto_mes"],
+            "pred": pred_ensemble
+        })
+        
+        df_out = df_out.join(
+            df_pred_mes,
+            on=["foto_mes"],
+            how="left"
+        ).with_columns(
+            pl.when(pl.col("pred").is_not_null())
+            .then(pl.col("pred"))
             .otherwise(pl.col("pred_proba_rolling"))
             .alias("pred_proba_rolling")
-        )
+        ).drop("pred")
+
 
     logger.info("=== ROLLING LGBM FINALIZADO ===")
     return df_out
