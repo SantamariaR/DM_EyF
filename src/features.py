@@ -443,7 +443,7 @@ def entrenar_quantiles_rolling(
                 continue
 
             y_df_c = df_c.select(features)
-            n_train = df_c.height()
+            n_train = df_c.height
             X = np.arange(n_train).reshape(-1, 1)
 
             # Entrenamiento por feature
