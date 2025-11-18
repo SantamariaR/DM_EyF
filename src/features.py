@@ -420,8 +420,8 @@ def entrenar_quantiles_rolling(
         df_train = df.filter(pl.col("foto_mes") < mes_actual)
         df_mes = df.filter(pl.col("foto_mes") == mes_actual)
 
-        logger.info(f"     → Entrenamiento: {df_train.height()} filas")
-        logger.info(f"     → Filas del mes actual: {df_mes.height()}")
+        logger.info(f"     → Entrenamiento: {df_train.height} filas")
+        logger.info(f"     → Filas del mes actual: {df_mes.height}")
 
         if df_train.is_empty():
             logger.info("     ⚠ Sin datos para entrenar este mes → columnas quedan NaN")
