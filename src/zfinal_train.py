@@ -521,18 +521,29 @@ def generar_proba_rolling_lightgbm(
 
     # Loop por cada mes
     for mes_actual in meses:
-        
-        meses_train = [
-            m for m in meses
-            if (m < mes_actual) and (m >= mes_actual - meses_contexto)
-        ]
-
-        if len(meses_train) == 0:
-            logger.info(f"Mes {mes_actual}: sin contexto → NaN")
+            
+        # índice del mes actual
+        idx = meses.index(mes_actual)
+    
+        # índice máximo permitido para train (dejando gap de 1 mes)
+        idx_fin = idx - 2
+    
+        if idx_fin < 0:
+            logger.info(f"Mes {mes_actual}: sin meses previos válidos para BAJA+2 → skip")
             continue
-
+    
+        # índice inicial según los meses de contexto
+        idx_ini = max(0, idx_fin - meses_contexto + 1)
+    
+        # meses efectivos de train
+        meses_train = meses[idx_ini : idx_fin + 1]
+    
+        if len(meses_train) == 0:
+            logger.info(f"Mes {mes_actual}: sin contexto suficiente → skip")
+            continue
+    
         logger.info(f"\n--- Mes {mes_actual} ---")
-        logger.info(f"Meses usados como train: {meses_train}")
+        logger.info(f"Train (BAJA+2): {meses_train}")
 
         # Train
         df_train = df_out.filter(pl.col("foto_mes").is_in(meses_train))
