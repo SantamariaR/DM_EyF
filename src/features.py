@@ -452,7 +452,7 @@ def entrenar_quantiles_rolling(
 
                 # Entrenamiento por cuantiles
                 for q in quantiles:
-                    logger.info(f"      → Entrenando {feat} / clase {clase} / q={q}")
+                    #logger.info(f"      → Entrenando {feat} / clase {clase} / q={q}")
 
                     params = {
                         "objective": "quantile",
@@ -479,15 +479,18 @@ def entrenar_quantiles_rolling(
         # 3) Aplicar actualizaciones *en bloque*
         # ======================================================
         if updates:
-            logger.info(f"📝 Actualizando {len(updates)} columnas para el mes {mes_actual}...")
+            #logger.info(f"📝 Actualizando {len(updates)} columnas para el mes {mes_actual}...")
 
-            df_out = df_out.with_columns([
-                pl.when(pl.col("foto_mes") == mes_actual)
-                 .then(pl.Series(name, vals))
-                 .otherwise(pl.col(name))
-                 .alias(name)
-                for name, vals in updates.items()
-            ])
+            cols_update = []
+            for name, vals in updates.items():
+                serie = [None] * df_out.height
+                idx = (df_out["foto_mes"] == mes_actual).to_numpy().nonzero()[0]
+                for i, v in zip(idx, vals):
+                    serie[i] = v
+                cols_update.append(pl.Series(name, serie))
+            
+            df_out = df_out.with_columns(cols_update)
+
 
             logger.info("   ✔ Columnas actualizadas.")
         else:
