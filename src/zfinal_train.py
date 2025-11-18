@@ -476,7 +476,7 @@ def evaluamos_en_predict_zlightgbm_amputado(df,n_canarios:int) -> dict:
 
 
 def generar_proba_rolling_lightgbm(df: pl.DataFrame,
-                                   n_canarios: int,
+                                   n_canarios: int = 5,
                                    meses_contexto: int = 4) -> pl.DataFrame:
     """
     Genera una única columna pred_proba_rolling entrenando un LightGBM
