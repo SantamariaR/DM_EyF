@@ -427,7 +427,7 @@ def entrenar_quantiles_rolling(
             logger.info("     ⚠ Sin datos para entrenar este mes → columnas quedan NaN")
             continue
 
-        N_mes = df_mes.height()
+        N_mes = df_mes.height
         X_mes = np.arange(N_mes).reshape(-1, 1)
 
         updates = {}
