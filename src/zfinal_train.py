@@ -581,7 +581,7 @@ def generar_proba_rolling_lightgbm(
             pred = abs(model.predict(X_mes))
             pred_list.append(pred)
 
-            logger.info(f"    pred: min={pred.min():.4f}, max={pred.max():.4f}")
+            logger.info(f"pred: min={pred.min():.4f}, max={pred.max():.4f}")
 
         # Ensemble final
         pred_ensemble = np.mean(pred_list, axis=0)

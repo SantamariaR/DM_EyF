@@ -39,7 +39,9 @@ def main2():
     path_data = DATA_PATH
     df = cargar_datos(path_data)
     logger.info(f"Cargado el dataset:{path_data}")
-
+    
+    logger.info(f"Meses en el dataset {MES_TRAIN+[202103]+MES_VALIDACION+[202105]+MES_TEST}")
+    df = df.filter(pl.col("foto_mes").is_in(MES_TRAIN+[202103]+MES_VALIDACION+[202105]+MES_TEST))
    
     #Ajuste IPC
     #df = ajustar_por_inflacion(df) # LO CAMBIÉ POR MULTIPLICACIÓN
