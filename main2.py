@@ -7,14 +7,14 @@ import logging
 # Funciones personalizadas
 
 from src.loader import cargar_datos,calcular_clase_ternaria,contar_por_grupos,convertir_clase_ternaria_a_target, cargar_features_importantes
-from src.features import feature_engineering_lag, feature_engineering_delta_lag,AgregaVarRandomForest,PPR,agregar_suma_m_visa_master,entrenar_quantiles_rolling
+from src.features import feature_engineering_lag, feature_engineering_delta_lag,AgregaVarRandomForest,PPR,agregar_suma_m_visa_master
 from src.config import *
 from src.optimization import optimizar,evaluar_en_test,guardar_resultados_test
 from src.best_params import cargar_mejores_hiperparametros
 from src.final_training import evaluar_en_predict
 from src.output_manager import guardar_resultados_predict
 from src.cleaning_features import train_overfit_lgbm_features, add_canaritos, seleccionar_variables_por_canaritos,convertir_todo_cero_a_nan,ajustar_por_inflacion
-from src.zfinal_train import evaluamos_en_predict_zlightgbm,evaluamos_en_final_zlightgbm
+from src.zfinal_train import evaluamos_en_predict_zlightgbm,evaluamos_en_final_zlightgbm,generar_proba_rolling_lightgbm
 
 # Nombre del log fijo en lugar de uno con timestamp
 nombre_log = f"log_{STUDY_NAME}.log"
@@ -85,32 +85,36 @@ def main2():
     # Hacemos un RF para agregar variables
     #df = AgregaVarRandomForest(df)
     
+    #04 Convertir clase ternaria a target binario
+    df = convertir_clase_ternaria_a_target(df)    
+    
     # Calculo regresión quartílica para cada clase
-    df = entrenar_quantiles_rolling(df)
+    df = generar_proba_rolling_lightgbm(df)
     
     logger.info(f"DataFrame final con {len(df.columns)} columnas después de feature engineering")
     
+  
     
-   #03 Análisis e features sobre la clase ternaria(la idea es usar canaritos para podar features)
-    logger.info("=== ANÁLISIS DE FEATURES CON CANARITOS ===")
-    df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
-    logger.info(f"Número de canaritos añadidos para análisis: {n_canarios}")
-   
-    modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
-    logger.info("Análisis de features con canaritos completado.")
-    # Borramos canaritos
-    df_canaritos = None
-    
-    logger.info(f"DataFrame con canaritos, total columnas: {len(df.columns)}")
-    logger.info(f"Número de canaritos añadidos: {n_canarios}")
-    
-    # Cargo si es necesario las features importantes según canaritos
-    #modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp68_feature_importance.csv")
-    #print(modelo_canaritos_features)
-    
-    logger.info(f"Número de features seleccionadas")    
-    df = seleccionar_variables_por_canaritos(modelo_canaritos_features,porcentaje_umbral=0.95,df=df)
-    logger.info(f"DataFrame final con {len(df.columns)} columnas después de selección por canaritos")
+#   #03 Análisis e features sobre la clase ternaria(la idea es usar canaritos para podar features)
+#    logger.info("=== ANÁLISIS DE FEATURES CON CANARITOS ===")
+#    df_canaritos,n_canarios = add_canaritos(df,canaritos_ratio=0.5)
+#    logger.info(f"Número de canaritos añadidos para análisis: {n_canarios}")
+#   
+#    modelo_canaritos_features = train_overfit_lgbm_features(df_canaritos,undersampling=UNDERSUMPLING)
+#    logger.info("Análisis de features con canaritos completado.")
+#    # Borramos canaritos
+#    df_canaritos = None
+#    
+#    logger.info(f"DataFrame con canaritos, total columnas: {len(df.columns)}")
+#    logger.info(f"Número de canaritos añadidos: {n_canarios}")
+#    
+#    # Cargo si es necesario las features importantes según canaritos
+#    #modelo_canaritos_features = cargar_features_importantes(BUCKET_NAME+"/exp/exp68_feature_importance.csv")
+#    #print(modelo_canaritos_features)
+#    
+#    logger.info(f"Número de features seleccionadas")    
+#    df = seleccionar_variables_por_canaritos(modelo_canaritos_features,porcentaje_umbral=0.95,df=df)
+#    logger.info(f"DataFrame final con {len(df.columns)} columnas después de selección por canaritos")
     
     # Me aseguro que el n{umero de canarios sea 5}
     col_canarios = [col for col in df.columns if col not in excluir] 

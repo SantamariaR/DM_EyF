@@ -475,19 +475,31 @@ def evaluamos_en_predict_zlightgbm_amputado(df,n_canarios:int) -> dict:
     return  df_pred
 
 
-def evaluamos_en_predict_zlightgbm_chunk(df,n_canarios:int) -> dict:
+def generar_proba_rolling_lightgbm(df: pl.DataFrame,
+                                   n_canarios: int,
+                                   meses_contexto: int = 4) -> pl.DataFrame:
     """
-    Evalúa el modelo LightGBM en el conjunto de predict.
-    Solo calcula la ganancia, sin usar sklearn.
-  
-    Args:
-        df: DataFrame con todos los datos
-        
-    Returns:
-        dict: Resultados de la evaluación en predict (ganancia + estadísticas básicas) """
-        
-    
-    #Definir hiperparámetros fijos para la evaluación final
+    Genera una única columna pred_proba_rolling entrenando un LightGBM
+    por cada mes usando los últimos N meses previos como train.
+    """
+
+    logger.info("=== INICIANDO ROLLING LIGHTGBM (con ensemble y canarios) ===")
+
+    # Ordeno meses
+    meses = sorted(df["foto_mes"].unique().to_list())
+
+    # Clon y agrego columna de predicciones
+    df_out = df.clone().with_columns(
+        pl.lit(None).alias("pred_proba_rolling")
+    )
+
+    # Features (todas menos targets y foto_mes)
+    features = [
+        c for c in df.columns
+        if c not in ["foto_mes", "clase_ternaria", "clase_01"]
+    ]
+
+    # Params base
     params = {
         'boosting_type': 'gbdt',
         'objective': 'binary',
@@ -497,132 +509,96 @@ def evaluamos_en_predict_zlightgbm_chunk(df,n_canarios:int) -> dict:
         'feature_pre_filter': False,
         'force_row_wise': True,
         'verbosity': -100,
-        
-    
         'max_bin': 31,
         'min_data_in_leaf': 20,
-        
         'n_estimators': 9999,
         'num_leaves': 999,
         'learning_rate': 1.0,
-        
         'feature_fraction': 0.50,
-        
         'canaritos': n_canarios,
-        'gradient_bound':0.1
+        'gradient_bound': 0.1
     }
-        
-   
-    logger.info("=== EVALUACIÓN EN CONJUNTO DE PREDICCIÓN ===")
-    
-    # Períodos de evaluación
-    periodos_entrenamiento = MES_TRAIN + [202103]+ MES_VALIDACION
-    periodo_test = MES_TEST
-    frac = UNDERSUMPLING
-        
-    logger.info(f"Períodos de entrenamiento: {periodos_entrenamiento}")
-    logger.info(f"Período de Testeo: {periodo_test}")
-    logger.info(f"Fracción de undersampling: {frac}")
-    
-    # Data preparación, train y test
-    df_train = df.filter(pl.col("foto_mes").is_in(periodos_entrenamiento))
-    df_test = df.filter(pl.col("foto_mes").is_in(periodo_test))
-    
-    # Separar clases(por si queremos undersampling )
-    df_pos = df_train.filter(pl.col("clase_01") == 1)
-    df_neg = df_train.filter(pl.col("clase_01") == 0)
 
+    # Loop por meses para generar rolling train
+    for mes_actual in meses:
 
-    # Polars no tiene sample(frac=...), pero podemos calcular cuántas filas queremos
-    n_sample = int(df_neg.height * frac)
-    df_neg = df_neg.sample(n=n_sample, seed=SEMILLA[0])
+        # Meses previos
+        meses_train = [
+            m for m in meses
+            if (m < mes_actual) and (m >= mes_actual - meses_contexto)
+        ]
 
-    # Concatenar positivos y negativos muestreados
-    df_sub = pl.concat([df_pos, df_neg])
+        if len(meses_train) == 0:
+            logger.info(f"Mes {mes_actual}: sin contexto → NaN")
+            continue
 
-    # Shuffle del dataset
-    df_sub = df_sub.sample(fraction=1.0, shuffle=True, seed=SEMILLA[0]) 
-    
-    # ==================================================
-    # Preparar dataset para LightGBM, entrenar y testear
-    # ==================================================
-    X = df_sub.drop(["clase_ternaria", "clase_01"]).to_pandas()
-    y = df_sub["clase_01"].to_pandas()
+        logger.info(f"\n--- Mes {mes_actual} ---")
+        logger.info(f"Meses usados como train: {meses_train}")
 
-    dtrain = lgb.Dataset(X, label=y)
-    
-    # Para test sólo tomo como positivos BAJA+2
-    X_test = df_test.drop(["clase_ternaria", "clase_01"]).to_pandas()
-    y_test = df_test["clase_ternaria"].to_pandas()
-    y_test = (y_test == "BAJA+2").astype(int)
-    
-      
-    logger.info(f"Train dataset listo: {X.shape}, Pos: {y.sum()}, Neg: {len(y)-y.sum()} ")
-    
-    # Listas para almacenar modelos y predicciones
-    modelos = []
-    predicciones_test = []
-    # Entrenar 5 modelos con diferentes semillas
-    for i, semilla in enumerate(SEMILLA): # +SEMILLERO):
-        logger.info(f"\n--- Entrenando modelo {i+1} con semilla {semilla} ---")
-        
-        # Actualizar la semilla en los parámetros
-        params['seed'] = semilla
-        params['feature_fraction_seed'] = semilla
-        params['bagging_seed'] = semilla
-        
-        model = lgb.train(
-            params,
-            dtrain,
-            feval=ganancia_evaluator_lgb,
-            callbacks=[lgb.log_evaluation(period=100)]
+        # Extraigo train y test del mes actual
+        df_train = df_out.filter(pl.col("foto_mes").is_in(meses_train))
+        df_mes   = df_out.filter(pl.col("foto_mes") == mes_actual)
+
+        if df_train.is_empty() or df_mes.is_empty():
+            logger.warning(f"Mes {mes_actual}: train o mes vacío → se saltea")
+            continue
+
+        # Undersampling
+        df_pos = df_train.filter(pl.col("clase_01") == 1)
+        df_neg = df_train.filter(pl.col("clase_01") == 0)
+
+        n_sample = int(df_neg.height * UNDERSUMPLING)
+        df_neg = df_neg.sample(n=n_sample, seed=SEMILLA[0])
+
+        df_sub = pl.concat([df_pos, df_neg]).sample(
+            fraction=1.0, shuffle=True, seed=SEMILLA[0]
         )
-        
-        # Guardar modelo
-        modelos.append(model)
-        
-        # ✅ CORRECCIÓN: Réplica exacta del comportamiento de R
-        # En R: predict(modelo_final, data.matrix(dfuture[, campos_buenos, with= FALSE]))
-        #X_test_matrix = X_test.values if hasattr(X_test, 'values') else X_test
-        
-        # Opción 1: Probabilidades (como en R)
-        y_pred_proba_single =  abs(model.predict(X_test))
-        gan_y_pred = calcular_ganancia(y_test,y_pred_proba_single)
-        
-        # Debugging de las predicciones
-        logger.info(f"Ganancia promedio de la cresta {gan_y_pred}")
-        logger.info(f"Rango predicciones modelo {i+1}: [{y_pred_proba_single.min():.4f}, {y_pred_proba_single.max():.4f}]")
-        logger.info(f"Predicciones modelo {i+1} (primeros 5): {[f'{x:.4f}' for x in y_pred_proba_single[:5]]}")
-        
-#        # Verificar si hay valores fuera de [0,1]
-#        if y_pred_proba_single.min() < 0 or y_pred_proba_single.max() > 1:
-#            logger.warning(f"⚠️ Modelo {i+1} tiene predicciones fuera de [0,1]")
-#            # Aplicar sigmoid si es necesario (pero raw_score=False debería evitarlo)
-#            y_pred_proba_single = 1 / (1 + np.exp(-y_pred_proba_single))
-        
-        predicciones_test.append(y_pred_proba_single)
 
-    # Promediar las predicciones
-    y_pred_proba_ensemble = np.mean(predicciones_test, axis=0)
-    
-    # ✅ VERIFICAR el ensemble también
-    logger.info(f"Rango predicciones ensemble: [{y_pred_proba_ensemble.min():.4f}, {y_pred_proba_ensemble.max():.4f}]")
-    logger.info(f"Predicciones ensemble (primeras 10): {[f'{x:.4f}' for x in y_pred_proba_ensemble[:10]]}")
-    
-    # Verificar distribución
-    unique_values = np.unique(y_pred_proba_ensemble.round(4))
-    logger.info(f"Valores únicos en predicciones (redondeados a 4 decimales): {unique_values}")
+        # Pandas para LGBM
+        X = df_sub[features].to_pandas()
+        y = df_sub["clase_01"].to_pandas()
 
-    
-    # Le añado la columna de predicciones al df_test original para análisis posterior si es necesario
-    df_test = df_test.with_columns([
-        pl.Series("pred_proba_ensemble", y_pred_proba_ensemble)
-    ])
-    
-    #logger.info(f"Datos de test con predicciones listos: {df_test.head()}")
-    # Calcular solo la ganancia
-    
-    # Calculamos las ganancias
-    df_pred = calcular_ganancia_acumulada(df_test, col_probabilidad="pred_proba_ensemble", col_clase="clase_ternaria")
- 
-    return  df_pred
+        X_mes = df_mes[features].to_pandas()
+
+        logger.info(f"Entrenando con {X.shape[0]} filas...")
+
+        # Ensemble
+        pred_list = []
+
+        for i, semilla in enumerate(SEMILLA):
+            logger.info(f"Modelo seed={semilla}")
+
+            params["seed"] = semilla
+            params["feature_fraction_seed"] = semilla
+            params["bagging_seed"] = semilla
+
+            dtrain = lgb.Dataset(X, label=y)
+
+            model = lgb.train(
+                params,
+                dtrain,
+                feval=ganancia_evaluator_lgb,
+                callbacks=[lgb.log_evaluation(period=100)]
+            )
+
+            pred_single = abs(model.predict(X_mes))
+            pred_list.append(pred_single)
+
+            logger.info(f"    pred: min={pred_single.min():.4f}, max={pred_single.max():.4f}")
+
+        # Ensemble final
+        pred_ensemble = np.mean(pred_list, axis=0)
+
+        logger.info(f"Pred ensemble mes {mes_actual}: "
+                    f"min={pred_ensemble.min():.4f}, max={pred_ensemble.max():.4f}")
+
+        # Pegar al DF
+        df_out = df_out.with_columns(
+            pl.when(pl.col("foto_mes") == mes_actual)
+            .then(pl.Series("tmp_pred", pred_ensemble))
+            .otherwise(pl.col("pred_proba_rolling"))
+            .alias("pred_proba_rolling")
+        )
+
+    logger.info("=== ROLLING LGBM FINALIZADO ===")
+    return df_out
