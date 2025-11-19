@@ -606,18 +606,35 @@ def generar_proba_rolling_lightgbm(
         
            
     df_pred_list = []
+    
     for mes, (row_ids, preds) in predicciones.items():
+    
+        # Si el mes no generó predicciones, saltarlo
+        if len(row_ids) == 0:
+            continue
+    
+        # Crear DataFrame forzando el tipo correcto
         df_pred_list.append(
-            pl.DataFrame({
-                "row_id": row_ids,
-                "pred_proba_rolling": preds
-            })
+            pl.DataFrame(
+                {
+                    "row_id": row_ids,
+                    "pred_proba_rolling": preds
+                },
+                schema={
+                    "row_id": pl.UInt64,
+                    "pred_proba_rolling": pl.Float32
+                }
+            )
         )
-
+    
+    # Si hubo predicciones, concatenamos
     if df_pred_list:
         df_pred = pl.concat(df_pred_list)
     else:
-        df_pred = pl.DataFrame({"row_id": [], "pred_proba_rolling": []})
+        df_pred = pl.DataFrame(
+            {"row_id": [], "pred_proba_rolling": []},
+            schema={"row_id": pl.UInt64, "pred_proba_rolling": pl.Float32}
+        )
 
     # Unir UNA vez por row_id (mucho más eficiente)
     df_out = df_out.join(df_pred, on="row_id", how="left").with_columns(

@@ -90,8 +90,7 @@ def main2():
     #04 Convertir clase ternaria a target binario
     df = convertir_clase_ternaria_a_target(df)    
     
-    # Calculo regresión quartílica para cada clase
-    df = generar_proba_rolling_lightgbm(df)
+
     
     logger.info(f"DataFrame final con {len(df.columns)} columnas después de feature engineering")
     
@@ -127,10 +126,19 @@ def main2():
     # Ahora agregamos los canaritos que hace falta para lightgbm
     df,n_canarios = add_canaritos(df,canaritos_ratio=ratio_canarios)
     logger.info(f"DataFrame para entrenamiento con zlighgbm:{df.columns}")
-
-    #04 Convertir clase ternaria a target binario
-    df = convertir_clase_ternaria_a_target(df)    
     
+    # Calculo proba rollong
+    df = generar_proba_rolling_lightgbm(df)
+    
+    # Obtener columnas que empiezan con 'canarito_'
+    canarito_cols = [col for col in df.columns if col.startswith('canarito_')]
+
+    # Obtener las demás columnas
+    other_cols = [col for col in df.columns if not col.startswith('canarito_')]
+
+    # Reordenar el DataFrame
+    df = df.select(canarito_cols + other_cols)
+   
     # Entrenamiento y evaluación final en modo predict
     df_test = evaluamos_en_predict_zlightgbm(df,n_canarios=n_canarios)
     
