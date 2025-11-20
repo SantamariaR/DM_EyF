@@ -128,7 +128,7 @@ def main2():
     logger.info(f"DataFrame para entrenamiento con zlighgbm:{df.columns}")
     
     # Calculo proba rollong
-    df = generar_proba_rolling_lightgbm(df)
+    #df = generar_proba_rolling_lightgbm(df)
     
     # Obtener columnas que empiezan con 'canarito_'
     canarito_cols = [col for col in df.columns if col.startswith('canarito_')]
