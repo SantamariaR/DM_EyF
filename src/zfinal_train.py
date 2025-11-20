@@ -509,14 +509,19 @@ def generar_proba_rolling_lightgbm(
         'feature_pre_filter': False,
         'force_row_wise': True,
         'verbosity': -100,
+        
+    
         'max_bin': 31,
         'min_data_in_leaf': 20,
+        
         'n_estimators': 9999,
         'num_leaves': 999,
         'learning_rate': 1.0,
+        
         'feature_fraction': 0.50,
+        
         'canaritos': n_canarios,
-        'gradient_bound': 0.1
+        'gradient_bound':0.1
     }
 
     # Loop por cada mes
