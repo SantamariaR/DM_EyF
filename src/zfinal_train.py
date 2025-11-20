@@ -115,7 +115,7 @@ def evaluamos_en_predict_zlightgbm(df,n_canarios:int) -> dict:
         )
         
         # Guardar modelo
-        modelos.append(model)
+        #modelos.append(model)
         
         # ✅ CORRECCIÓN: Réplica exacta del comportamiento de R
         # En R: predict(modelo_final, data.matrix(dfuture[, campos_buenos, with= FALSE]))
@@ -426,7 +426,7 @@ def evaluamos_en_predict_zlightgbm_amputado(df,n_canarios:int) -> dict:
         )
         
         # Guardar modelo
-        modelos.append(model)
+        #modelos.append(model)
         
         # ✅ CORRECCIÓN: Réplica exacta del comportamiento de R
         # En R: predict(modelo_final, data.matrix(dfuture[, campos_buenos, with= FALSE]))
@@ -496,7 +496,7 @@ def generar_proba_rolling_lightgbm(
     # Features para LightGBM
     features = [
         c for c in df.columns
-        if c not in ["foto_mes", "clase_ternaria", "clase_01"]
+        if c not in ["clase_ternaria", "clase_01"]
     ]
 
     # LightGBM base params
@@ -569,6 +569,8 @@ def generar_proba_rolling_lightgbm(
         X = df_sub[features].to_pandas()
         y = df_sub["clase_01"].to_pandas()
         X_mes = df_mes[features].to_pandas()
+        y_mes = df_mes["clase_ternaria"].to_pandas()
+        y_mes = (y_mes == "BAJA+2").astype(int)
 
         logger.info(f"Entrenando con {X.shape[0]} filas...")
 
@@ -593,8 +595,10 @@ def generar_proba_rolling_lightgbm(
 
             pred = abs(model.predict(X_mes))
             pred_list.append(pred)
-
-            logger.info(f"pred: min={pred.min():.4f}, max={pred.max():.4f}")
+            
+                # ✅ VERIFICAR el ensemble también
+            logger.info(f"Rango predicciones: [{pred.min():.4f}, {pred.max():.4f}]")
+            logger.info(f"Predicciones(primeras 10): {[f'{x:.4f}' for x in pred[:10]]}")
 
         # Ensemble final
         pred_ensemble = np.mean(pred_list, axis=0)

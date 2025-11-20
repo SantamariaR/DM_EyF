@@ -166,7 +166,7 @@ def objetivo_ganancia(trial: optuna.trial.Trial, df: pl.DataFrame, undersampling
         )
         
         # Guardar modelo
-        modelos.append(model)
+        #modelos.append(model)
         
         # Predecir con este modelo
         y_pred_proba_single = abs(model.predict(X_val))
