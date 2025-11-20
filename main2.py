@@ -90,7 +90,6 @@ def main2():
     #04 Convertir clase ternaria a target binario
     df = convertir_clase_ternaria_a_target(df)    
     
-
     
     logger.info(f"DataFrame final con {len(df.columns)} columnas después de feature engineering")
     
